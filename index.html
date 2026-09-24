@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>総合シフト管理 ＆ 給料連動システム</title>
+<style>
+  :root {
+    --sat-bg: #eff6ff; --sat-color: #1d4ed8;
+    --sun-bg: #fef2f2; --sun-color: #b91c1c;
+    --holiday-bg: #fff1f2; --holiday-color: #be123c;
+    --header-bg: #f8fafc; --border-color: #cbd5e1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    margin: 0; padding: 12px; background: #f1f5f9; color: #0f172a; font-size: 13px;
+  }
+  .app-header {
+    background: #fff; padding: 12px 16px; border-radius: 8px;
+    border: 1px solid var(--border-color); margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-title-box h1 { margin: 0; font-size: 18px; font-weight: bold; }
+  .facility-badge { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .header-center { text-align: center; }
+  .header-center h2 { margin: 0; font-size: 16px; color: #1e293b; }
+  .header-right { text-align: right; font-size: 11px; color: #475569; }
+  
+  .controls-bar {
+    display: flex; gap: 8px; margin-bottom: 10px; align-items: center; justify-content: space-between;
+  }
+  .btn {
+    border: none; padding: 7px 14px; border-radius: 4px; font-weight: 600; font-size: 12px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;
+  }
+  .btn-menu { background: #0f172a; color: #fff; }
+  .btn-add { background: #2563eb; color: #fff; }
+  .btn-pay { background: #059669; color: #fff; }
+  .btn-print { background: #475569; color: #fff; }
+  .btn:hover { opacity: 0.9; }
+
+  .table-container {
+    max-height: 70vh; overflow: auto; border: 1px solid var(--border-color);
+    background: #fff; border-radius: 4px;
+  }
+  table { border-collapse: separate; border-spacing: 0; font-size: 12px; white-space: nowrap; width: 100%; }
+  th, td { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 5px 6px; text-align: center; }
+  
+  thead tr:first-child th { position: sticky; top: 0; z-index: 10; background: var(--header-bg); }
+  thead tr:nth-child(2) th { position: sticky; top: 29px; z-index: 10; background: var(--header-bg); }
+
+  .col-id { position: sticky; left: 0; width: 65px; background: #fff; z-index: 5; font-family: monospace; }
+  .col-name { position: sticky; left: 65px; width: 100px; background: #fff; z-index: 5; text-align: left; font-weight: 600; }
+  .col-role { position: sticky; left: 165px; width: 80px; background: #fff; z-index: 5; }
+  .col-qual { position: sticky; left: 245px; width: 140px; background: #fff; z-index: 5; text-align: left; font-size: 11px; }
+
+  thead th.col-id, thead th.col-name, thead th.col-role, thead th.col-qual { z-index: 20; background: var(--header-bg); }
+
+  .col-stat { position: sticky; right: 0; background: #f8fafc; z-index: 5; font-weight: bold; width: 65px; }
+  .col-stat-time { position: sticky; right: 65px; background: #f8fafc; z-index: 5; width: 70px; }
+  .col-stat-night { position: sticky; right: 135px; background: #f8fafc; z-index: 5; width: 70px; }
+  thead th.col-stat, thead th.col-stat-time, thead th.col-stat-night { z-index: 20; background: var(--header-bg); }
+
+  .sat { background-color: var(--sat-bg) !important; color: var(--sat-color); }
+  .sun { background-color: var(--sun-bg) !important; color: var(--sun-color); }
+  .holiday { background-color: var(--holiday-bg) !important; color: var(--holiday-color); }
+
+  .shift-cell { width: 28px; min-width: 28px; cursor: pointer; user-select: none; }
+  .shift-cell:hover { outline: 2px solid #2563eb; }
+  .shift-日 { background: #e0f2fe; color: #0369a1; }
+  .shift-早 { background: #fef9c3; color: #854d0e; }
+  .shift-遅 { background: #fce7f3; color: #9d174d; }
+  .shift-夜 { background: #ede9fe; color: #5b21b6; font-weight: bold; }
+  .shift-休 { background: #f1f5f9; color: #94a3b8; }
+  .shift-有 { background: #dcfce7; color: #15803d; font-weight: bold; }
+
+  #popover {
+    position: absolute; display: none; background: #fff; border: 1px solid #94a3b8;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 6px; padding: 6px; gap: 4px; z-index: 100;
+  }
+  #popover button { border: none; padding: 5px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; color: #fff; font-weight: bold; }
+
+  #drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 198; }
+  #drawer {
+    position: fixed; top: 0; left: -320px; width: 300px; height: 100%; background: #fff;
+    box-shadow: 4px 0 12px rgba(0,0,0,0.15); transition: left 0.25s ease; z-index: 199;
+    padding: 20px; box-sizing: border-box; overflow-y: auto;
+  }
+  #drawer.open { left: 0; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+  .form-group input, .form-group select { width: 100%; padding: 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; }
+
+  .modal-box {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: #fff; border: 1px solid #94a3b8; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+    padding: 20px; width: 500px; max-width: 90vw; z-index: 200; border-radius: 8px;
+  }
+
+  @media print {
+    .no-print, #popover, #drawer, #drawer-backdrop, .controls-bar { display: none !important; }
+    body { background: #fff !important; padding: 0 !important; font-size: 7.5pt !important; }
+    .table-container { overflow: visible !important; max-height: none !important; border: none !important; }
+    table { width: 100% !important; table-layout: fixed; border-collapse: collapse !important; }
+    th, td { border: 0.5pt solid #475569 !important; padding: 2px 1px !important; }
+    .col-id, .col-name, .col-role, .col-qual, .col-stat, .col-stat-time, .col-stat-night { position: static !important; }
+    thead { display: table-header-group !important; }
+    tr { page-break-inside: avoid !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="controls-bar no-print">
+  <div>
+    <button class="btn btn-menu" onclick="toggleDrawer()">≡ 設定・印刷</button>
+    <button class="btn btn-add" onclick="openAddEmpModal()">＋ 新規スタッフ追加</button>
+  </div>
+  <div>
+    <button class="btn btn-pay" onclick="exportPayroll()">給料明細データ出力</button>
+    <button class="btn btn-print" onclick="window.print()">🖨️ 掲示板印刷</button>
+  </div>
+</div>
+
+<div class="app-header">
+  <div class="header-left">
+    <div class="header-title-box">
+      <h1 id="disp-company">社会福祉法人 幸寿会</h1>
+      <div class="facility-badge" id="disp-facility">特別養護老人ホーム さくら苑 2F</div>
+    </div>
+  </div>
+  <div class="header-center">
+    <h2 id="disp-title">2026年 10月度 勤務表</h2>
+  </div>
+  <div class="header-right">
+    <div><strong>期間:</strong> <span id="disp-period">2026/10/16 〜 2026/11/15</span></div>
+    <div><strong>締め:</strong> <span id="disp-closing">15日</span> ／ <strong>決済:</strong> <span id="disp-payment">翌月10日払い</span></div>
+  </div>
+</div>
+
+<div class="table-container">
+  <table id="shift-table">
+    <thead>
+      <tr id="head-row-day"></tr>
+      <tr id="head-row-week"></tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<div id="popover">
+  <button style="background:#0284c7" onclick="applyShift('日')">日勤</button>
+  <button style="background:#ca8a04" onclick="applyShift('早')">早出</button>
+  <button style="background:#be185d" onclick="applyShift('遅')">遅番</button>
+  <button style="background:#7c3aed" onclick="applyShift('夜')">夜勤</button>
+  <button style="background:#16a34a" onclick="applyShift('有')">有休</button>
+  <button style="background:#64748b" onclick="applyShift('休')">公休</button>
+</div>
+
+<div id="drawer-backdrop" onclick="toggleDrawer()"></div>
+<div id="drawer">
+  <h3>事業所・締め日設定</h3>
+  <div class="form-group">
+    <label>会社名</label>
+    <input type="text" id="cfg-company" value="社会福祉法人 幸寿会" onchange="updateConfig()">
+  </div>
+  <div class="form-group">
+    <label>施設・店舗名</label>
+    <input type="text" id="cfg-facility" value="特別養護老人ホーム さくら苑 2F" onchange="updateConfig()">
+  </div>
+  <div class="form-group">
+    <label>対象年 / 月</label>
+    <div style="display:flex; gap:6px;">
+      <input type="number" id="cfg-year" value="2026" onchange="updateConfig()">
+      <input type="number" id="cfg-month" value="10" min="1" max="12" onchange="updateConfig()">
+    </div>
+  </div>
+  <div class="form-group">
+    <label>締め日（1〜31 または 末日）</label>
+    <input type="text" id="cfg-closing" value="15" onchange="updateConfig()">
+  </div>
+  <div class="form-group">
+    <label>給与決済日（支払日）</label>
+    <input type="text" id="cfg-payment" value="翌月10日払い" onchange="updateConfig()">
+  </div>
+  <hr style="margin:20px 0; border:none; border-top:1px solid #e2e8f0;">
+  <button class="btn btn-print" style="width:100%; justify-content:center;" onclick="window.print()">🖨️ 掲示板用に印刷 / PDF保存</button>
+</div>
+
+<div id="modal-add" class="modal-box">
+  <h3>新規スタッフ追加（雇用契約連携）</h3>
+  <div class="form-group"><label>スタッフID</label><input type="text" id="new-id" value="EMP007"></div>
+  <div class="form-group"><label>氏名</label><input type="text" id="new-name" placeholder="例: 吉田 健二"></div>
+  <div class="form-group"><label>役職 / 立場</label><input type="text" id="new-role" placeholder="例: 派遣スタッフ, パート"></div>
+  <div class="form-group"><label>資格 / 雇用形態</label><input type="text" id="new-qual" placeholder="例: 介護福祉士 / 派遣"></div>
+  <div class="form-group"><label>勤務不可曜日</label><input type="text" id="new-unworkable" placeholder="例: 日,土 (カンマ区切り)"></div>
+  <div style="text-align:right; gap:8px; display:flex; justify-content:flex-end;">
+    <button class="btn" style="background:#e2e8f0; color:#334155;" onclick="closeModal('modal-add')">キャンセル</button>
+    <button class="btn btn-add" onclick="submitNewEmp()">追加してシフト反映</button>
+  </div>
+</div>
+
+<div id="modal-pay" class="modal-box">
+  <h3>給料明細連携データ (JSON)</h3>
+  <textarea id="pay-json" style="width:100%; height:180px; font-family:monospace; font-size:11px;"></textarea>
+  <div style="text-align:right; margin-top:10px;">
+    <button class="btn" style="background:#0f172a; color:#fff;" onclick="closeModal('modal-pay')">閉じる</button>
+  </div>
+</div>
+
+<script>
+const holidays2026 = ["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-20","2026-04-29","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-07-20","2026-08-11","2026-09-21","2026-09-22","2026-09-23","2026-10-12","2026-11-03","2026-11-23"];
+const weekdaysJp = ["日","月","火","水","木","金","土"];
+
+let employees = [
+  { id: "EMP001", name: "山田 太郎", role: "リーダー", qual: "介護福祉士 / 常勤", unwork: [0], times: { work: 8, night: 14 } },
+  { id: "EMP002", name: "佐藤 花子", role: "主任", qual: "看護師 / 常勤", unwork: [0, 6], times: { work: 8, night: 0 } },
+  { id: "EMP003", name: "鈴木 一郎", role: "スタッフ", qual: "調理師 / パート", unwork: [], times: { work: 5.5, night: 0 } },
+  { id: "EMP004", name: "高橋 健二", role: "フロア長", qual: "介護福祉士 / 夜勤専従", unwork: [], times: { work: 15, night: 15 } },
+  { id: "EMP005", name: "田中 美咲", role: "派遣", qual: "介護助手 / 派遣スタッフ", unwork: [0, 6], times: { work: 8, night: 0 } }
+];
+
+let shiftData = {};
+let activeTarget = null;
+
+function getCalendarDays() {
+  const y = parseInt(document.getElementById("cfg-year").value);
+  const m = parseInt(document.getElementById("cfg-month").value);
+  const closingStr = document.getElementById("cfg-closing").value.trim();
+  let days = [];
+
+  if (closingStr === "末日" || closingStr === "31" || closingStr === "") {
+    const lastDay = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= lastDay; d++) {
+      days.push(new Date(y, m - 1, d));
+    }
+  } else {
+    const cDay = parseInt(closingStr);
+    const prevMonthLast = new Date(y, m - 1, 0).getDate();
+    const startDay = Math.min(cDay + 1, prevMonthLast);
+    for (let d = startDay; d <= prevMonthLast; d++) {
+      days.push(new Date(y, m - 2, d));
+    }
+    for (let d = 1; d <= cDay; d++) {
+      days.push(new Date(y, m - 1, d));
+    }
+  }
+  return days;
+}
+
+function formatDate(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+function render() {
+  const days = getCalendarDays();
+  if (days.length === 0) return;
+
+  const startStr = formatDate(days[0]);
+  const endStr = formatDate(days[days.length - 1]);
+  document.getElementById("disp-period").innerText = `${startStr} 〜 ${endStr}`;
+  document.getElementById("disp-company").innerText = document.getElementById("cfg-company").value;
+  document.getElementById("disp-facility").innerText = document.getElementById("cfg-facility").value;
+  document.getElementById("disp-title").innerText = `${document.getElementById("cfg-year").value}年 ${document.getElementById("cfg-month").value}月度 勤務表`;
+  document.getElementById("disp-closing").innerText = document.getElementById("cfg-closing").value + (document.getElementById("cfg-closing").value.includes("末") ? "" : "日");
+  document.getElementById("disp-payment").innerText = document.getElementById("cfg-payment").value;
+
+  const trDay = document.getElementById("head-row-day");
+  const trWeek = document.getElementById("head-row-week");
+  trDay.innerHTML = `<th class="col-id" rowspan="2">ID</th><th class="col-name" rowspan="2">氏名</th><th class="col-role" rowspan="2">役職</th><th class="col-qual" rowspan="2">資格・立場</th>`;
+  trWeek.innerHTML = "";
+
+  days.forEach(dt => {
+    const d = dt.getDate();
+    const w = dt.getDay();
+    const iso = formatDate(dt);
+    const isHoli = holidays2026.includes(iso);
+    let cls = isHoli ? "holiday" : (w === 0 ? "sun" : (w === 6 ? "sat" : ""));
+    trDay.innerHTML += `<th class="${cls}">${d}</th>`;
+    trWeek.innerHTML += `<th class="${cls}">${weekdaysJp[w]}</th>`;
+  });
+
+  trDay.innerHTML += `<th class="col-stat-night" rowspan="2">夜勤時間</th><th class="col-stat-time" rowspan="2">総実働</th><th class="col-stat" rowspan="2">出勤日数</th>`;
+
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+
+  employees.forEach(emp => {
+    if (!shiftData[emp.id]) shiftData[emp.id] = {};
+    let workDays = 0, totalHours = 0, totalNight = 0;
+
+    let tr = document.createElement("tr");
+    tr.innerHTML = `<td class="col-id">${emp.id}</td><td class="col-name">${emp.name}</td><td class="col-role">${emp.role}</td><td class="col-qual">${emp.qual}</td>`;
+
+    days.forEach(dt => {
+      const iso = formatDate(dt);
+      const w = dt.getDay();
+      const isHoli = holidays2026.includes(iso);
+      let cls = isHoli ? "holiday" : (w === 0 ? "sun" : (w === 6 ? "sat" : ""));
+
+      if (!shiftData[emp.id][iso]) {
+        shiftData[emp.id][iso] = emp.unwork.includes(w) ? "休" : "日";
+      }
+
+      const val = shiftData[emp.id][iso];
+      if (["日","早","遅","夜"].includes(val)) {
+        workDays++;
+        totalHours += (val === "夜" ? emp.times.night : emp.times.work);
+      }
+      if (val === "夜") {
+        totalNight += emp.times.night;
+      }
+
+      tr.innerHTML += `<td class="shift-cell ${cls} shift-${val}" onclick="openPopover(event, '${emp.id}', '${iso}')">${val}</td>`;
+    });
+
+    tr.innerHTML += `<td class="col-stat-night">${totalNight}h</td><td class="col-stat-time">${totalHours}h</td><td class="col-stat">${workDays}日</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openPopover(e, empId, iso) {
+  activeTarget = { empId, iso };
+  const pop = document.getElementById("popover");
+  pop.style.display = "flex";
+  pop.style.left = `${e.pageX - 20}px`;
+  pop.style.top = `${e.pageY + 10}px`;
+}
+
+function applyShift(type) {
+  if (!activeTarget) return;
+  const { empId, iso } = activeTarget;
+  const emp = employees.find(e => e.id === empId);
+  const dt = new Date(iso);
+  if (emp.unwork.includes(dt.getDay()) && !["休","有"].includes(type)) {
+    if (!confirm(`【契約警告】${emp.name} さんは契約上 ${weekdaysJp[dt.getDay()]}曜日 勤務不可です。登録しますか？`)) {
+      document.getElementById("popover").style.display = "none";
+      return;
+    }
+  }
+  shiftData[empId][iso] = type;
+  document.getElementById("popover").style.display = "none";
+  render();
+}
+
+function updateConfig() { render(); }
+function toggleDrawer() {
+  const d = document.getElementById("drawer");
+  const b = document.getElementById("drawer-backdrop");
+  d.classList.toggle("open");
+  b.style.display = d.classList.contains("open") ? "block" : "none";
+}
+
+function openAddEmpModal() { document.getElementById("modal-add").style.display = "block"; }
+function closeModal(id) { document.getElementById(id).style.display = "none"; }
+
+function submitNewEmp() {
+  const id = document.getElementById("new-id").value.trim();
+  const name = document.getElementById("new-name").value.trim();
+  if (!name) return alert("氏名を入力してください");
+  const unworkStr = document.getElementById("new-unworkable").value;
+  const unwork = [];
+  if (unworkStr.includes("日")) unwork.push(0);
+  if (unworkStr.includes("土")) unwork.push(6);
+
+  employees.push({
+    id, name,
+    role: document.getElementById("new-role").value || "スタッフ",
+    qual: document.getElementById("new-qual").value || "介護福祉士",
+    unwork, times: { work: 8, night: 14 }
+  });
+  closeModal("modal-add");
+  render();
+}
+
+function exportPayroll() {
+  const days = getCalendarDays();
+  const out = employees.map(emp => {
+    let daysCnt = 0, hours = 0, nightHours = 0;
+    days.forEach(dt => {
+      const iso = formatDate(dt);
+      const val = shiftData[emp.id][iso];
+      if (["日","早","遅","夜"].includes(val)) {
+        daysCnt++;
+        hours += (val === "夜" ? emp.times.night : emp.times.work);
+      }
+      if (val === "夜") nightHours += emp.times.night;
+    });
+    return {
+      employeeId: emp.id,
+      name: emp.name,
+      targetPeriod: document.getElementById("disp-period").innerText,
+      workDays: daysCnt,
+      totalHours: hours,
+      nightHours: nightHours
+    };
+  });
+  document.getElementById("pay-json").value = JSON.stringify(out, null, 2);
+  document.getElementById("modal-pay").style.display = "block";
+}
+
+window.addEventListener("DOMContentLoaded", () => render());
+</script>
+</body>
+</html>
