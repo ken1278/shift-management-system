@@ -10,6 +10,10 @@
     --sun-bg: #fef2f2; --sun-color: #b91c1c;
     --holiday-bg: #fff1f2; --holiday-color: #be123c;
     --header-bg: #f8fafc; --border-color: #cbd5e1;
+    /* 固定列の幅（ここを変えるだけで sticky の位置も追従する） */
+    --staff-w: 110px;
+    --stat-w: 64px;
+    --day-w: 30px;
   }
   * { box-sizing: border-box; }
   body {
@@ -18,19 +22,21 @@
   }
   .app-header {
     background: #fff; padding: 12px 16px; border-radius: 8px;
-    border: 1px solid var(--border-color); margin-bottom: 12px;
-    display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid var(--border-color); margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
   }
-  .header-left { display: flex; align-items: center; gap: 12px; }
   .header-title-box h1 { margin: 0; font-size: 18px; font-weight: bold; }
   .facility-badge { font-size: 12px; color: #64748b; margin-top: 2px; }
-  .header-center { text-align: center; }
-  .header-center h2 { margin: 0; font-size: 16px; color: #1e293b; }
+  .header-center { display: flex; align-items: center; gap: 8px; }
+  .header-center h2 { margin: 0; font-size: 16px; color: #1e293b; min-width: 170px; text-align: center; }
+  .month-nav { border: 1px solid var(--border-color); background: #fff; border-radius: 4px; width: 30px; height: 28px; cursor: pointer; font-size: 14px; }
+  .month-nav:hover { background: #f1f5f9; }
   .header-right { text-align: right; font-size: 11px; color: #475569; }
-  
+
   .controls-bar {
-    display: flex; gap: 8px; margin-bottom: 10px; align-items: center; justify-content: space-between;
+    display: flex; gap: 8px; margin-bottom: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
   }
+  .controls-bar > div { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn {
     border: none; padding: 7px 14px; border-radius: 4px; font-weight: 600; font-size: 12px;
     cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;
@@ -39,75 +45,148 @@
   .btn-add { background: #2563eb; color: #fff; }
   .btn-pay { background: #059669; color: #fff; }
   .btn-print { background: #475569; color: #fff; }
+  .btn-sub { background: #e2e8f0; color: #334155; }
+  .btn-danger { background: #dc2626; color: #fff; }
   .btn:hover { opacity: 0.9; }
 
-  .table-container {
-    max-height: 70vh; overflow: auto; border: 1px solid var(--border-color);
-    background: #fff; border-radius: 4px;
+  /* 入力パレット（ブラシ） */
+  .palette {
+    background: #fff; border: 1px solid var(--border-color); border-radius: 6px;
+    padding: 6px 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   }
-  table { border-collapse: separate; border-spacing: 0; font-size: 12px; white-space: nowrap; width: 100%; }
-  th, td { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 5px 6px; text-align: center; }
-  
-  thead tr:first-child th { position: sticky; top: 0; z-index: 10; background: var(--header-bg); }
-  thead tr:nth-child(2) th { position: sticky; top: 29px; z-index: 10; background: var(--header-bg); }
+  .palette-label { font-weight: 600; font-size: 12px; color: #475569; margin-right: 4px; }
+  .palette-hint { font-size: 11px; color: #64748b; margin-left: auto; }
+  .brush {
+    border: 2px solid transparent; border-radius: 4px; padding: 4px 10px; font-size: 12px;
+    font-weight: bold; cursor: pointer;
+  }
+  .brush.active { border-color: #0f172a; box-shadow: 0 0 0 2px #fff inset; }
+  .brush-none { background: #fff; color: #334155; border-color: var(--border-color); }
 
-  .col-id { position: sticky; left: 0; width: 65px; background: #fff; z-index: 5; font-family: monospace; }
-  .col-name { position: sticky; left: 65px; width: 100px; background: #fff; z-index: 5; text-align: left; font-weight: 600; }
-  .col-role { position: sticky; left: 165px; width: 80px; background: #fff; z-index: 5; }
-  .col-qual { position: sticky; left: 245px; width: 140px; background: #fff; z-index: 5; text-align: left; font-size: 11px; }
+  .table-container {
+    max-height: 72vh; overflow: auto; border: 1px solid var(--border-color);
+    background: #fff; border-radius: 4px; position: relative;
+  }
+  table { border-collapse: separate; border-spacing: 0; font-size: 12px; white-space: nowrap; }
+  th, td { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 4px 4px; text-align: center; }
 
-  thead th.col-id, thead th.col-name, thead th.col-role, thead th.col-qual { z-index: 20; background: var(--header-bg); }
+  /* ヘッダーは1行（日付＋曜日を縦に並べる）にして sticky の top ずれを無くす */
+  thead th { position: sticky; top: 0; z-index: 10; background: var(--header-bg); line-height: 1.25; }
+  thead th .wd { display: block; font-size: 10px; font-weight: normal; }
 
-  .col-stat { position: sticky; right: 0; background: #f8fafc; z-index: 5; font-weight: bold; width: 65px; }
-  .col-stat-time { position: sticky; right: 65px; background: #f8fafc; z-index: 5; width: 70px; }
-  .col-stat-night { position: sticky; right: 135px; background: #f8fafc; z-index: 5; width: 70px; }
-  thead th.col-stat, thead th.col-stat-time, thead th.col-stat-night { z-index: 20; background: var(--header-bg); }
+  .col-staff {
+    position: sticky; left: 0; z-index: 5; background: #fff; text-align: left;
+    width: var(--staff-w); min-width: var(--staff-w); max-width: var(--staff-w);
+    overflow: hidden; text-overflow: ellipsis; box-shadow: 2px 0 0 var(--border-color);
+  }
+  .staff-name { font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+  .staff-meta { font-size: 10px; color: #64748b; font-weight: normal; }
+  /* 役職・資格列：通常は非表示。「詳細表示」ON のときだけスクロールで流れる列として出す */
+  .col-info { display: none; text-align: left; font-size: 11px; color: #475569; }
+  body.show-info .col-info { display: table-cell; }
+  .info-toggle { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; cursor: pointer; }
+  .staff-actions button {
+    border: none; background: none; cursor: pointer; font-size: 12px; color: #94a3b8; padding: 0 2px;
+  }
+  .staff-actions button:hover { color: #2563eb; }
 
-  .sat { background-color: var(--sat-bg) !important; color: var(--sat-color); }
-  .sun { background-color: var(--sun-bg) !important; color: var(--sun-color); }
-  .holiday { background-color: var(--holiday-bg) !important; color: var(--holiday-color); }
+  .col-stat {
+    position: sticky; z-index: 5; background: #f8fafc; font-weight: bold;
+    width: var(--stat-w); min-width: var(--stat-w); max-width: var(--stat-w);
+  }
+  .col-stat.s1 { right: calc(var(--stat-w) * 2); box-shadow: -2px 0 0 var(--border-color); }
+  .col-stat.s2 { right: var(--stat-w); }
+  .col-stat.s3 { right: 0; }
+  thead th.col-staff, thead th.col-stat { z-index: 20; background: var(--header-bg); }
 
-  .shift-cell { width: 28px; min-width: 28px; cursor: pointer; user-select: none; }
-  .shift-cell:hover { outline: 2px solid #2563eb; }
+  .sat { background-color: var(--sat-bg); color: var(--sat-color); }
+  .sun { background-color: var(--sun-bg); color: var(--sun-color); }
+  .holiday { background-color: var(--holiday-bg); color: var(--holiday-color); }
+
+  .shift-cell {
+    width: var(--day-w); min-width: var(--day-w); max-width: var(--day-w);
+    cursor: pointer; user-select: none; touch-action: none; position: relative;
+  }
+  .shift-cell:hover { outline: 2px solid #2563eb; outline-offset: -2px; }
   .shift-日 { background: #e0f2fe; color: #0369a1; }
   .shift-早 { background: #fef9c3; color: #854d0e; }
   .shift-遅 { background: #fce7f3; color: #9d174d; }
   .shift-夜 { background: #ede9fe; color: #5b21b6; font-weight: bold; }
-  .shift-休 { background: #f1f5f9; color: #94a3b8; }
+  .shift-明 { background: #f5f3ff; color: #7c3aed; }
+  .shift-休 { background: #f8fafc; color: #94a3b8; }
   .shift-有 { background: #dcfce7; color: #15803d; font-weight: bold; }
+  /* 契約上の勤務不可曜日に勤務を入れたセル */
+  .violation::after {
+    content: ""; position: absolute; top: 0; right: 0;
+    border-top: 7px solid #dc2626; border-left: 7px solid transparent;
+  }
+
+  /* 日別人数（下部固定） */
+  tfoot td { background: #f8fafc; font-size: 11px; }
+  tfoot tr:first-child td { border-top: 2px solid var(--border-color); }
+  tfoot .short { color: #dc2626; font-weight: bold; }
 
   #popover {
-    position: absolute; display: none; background: #fff; border: 1px solid #94a3b8;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 6px; padding: 6px; gap: 4px; z-index: 100;
+    position: fixed; display: none; background: #fff; border: 1px solid #94a3b8;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15); border-radius: 6px; padding: 6px; gap: 4px; z-index: 100;
+    flex-wrap: wrap; max-width: 300px;
   }
-  #popover button { border: none; padding: 5px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; color: #fff; font-weight: bold; }
+  #popover button { border: none; padding: 6px 9px; border-radius: 3px; font-size: 12px; cursor: pointer; color: #fff; font-weight: bold; }
 
   #drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 198; }
   #drawer {
-    position: fixed; top: 0; left: -320px; width: 300px; height: 100%; background: #fff;
+    position: fixed; top: 0; left: -340px; width: 320px; height: 100%; background: #fff;
     box-shadow: 4px 0 12px rgba(0,0,0,0.15); transition: left 0.25s ease; z-index: 199;
-    padding: 20px; box-sizing: border-box; overflow-y: auto;
+    padding: 20px; overflow-y: auto;
   }
   #drawer.open { left: 0; }
   .form-group { margin-bottom: 14px; }
   .form-group label { display: block; font-weight: 600; font-size: 12px; margin-bottom: 4px; }
   .form-group input, .form-group select { width: 100%; padding: 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; }
+  .form-row { display: flex; gap: 8px; }
+  .form-row > * { flex: 1; }
+  .weekday-picks { display: flex; gap: 4px; flex-wrap: wrap; }
+  .weekday-picks label { display: inline-flex; align-items: center; gap: 2px; font-weight: normal; }
+  .weekday-picks input { width: auto; }
 
+  #modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 199; }
   .modal-box {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: #fff; border: 1px solid #94a3b8; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
-    padding: 20px; width: 500px; max-width: 90vw; z-index: 200; border-radius: 8px;
+    padding: 20px; width: 520px; max-width: 92vw; max-height: 90vh; overflow-y: auto; z-index: 200; border-radius: 8px;
+  }
+  .modal-box h3 { margin-top: 0; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
+
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #0f172a; color: #fff; padding: 8px 16px; border-radius: 6px; font-size: 12px;
+    opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 300;
+  }
+  #toast.show { opacity: 1; }
+
+  /* スマホ・狭い画面：固定列を細くし、集計列は固定しない（日付を見やすく） */
+  @media (max-width: 760px) {
+    :root { --staff-w: 84px; }
+    body { padding: 8px; }
+    .col-stat { right: auto !important; box-shadow: none !important; }
+    .palette-hint { display: none; }
   }
 
   @media print {
-    .no-print, #popover, #drawer, #drawer-backdrop, .controls-bar { display: none !important; }
+    @page { size: A4 landscape; margin: 8mm; }
+    .no-print, #popover, #drawer, #drawer-backdrop, #modal-backdrop, .modal-box, .staff-actions, #toast { display: none !important; }
     body { background: #fff !important; padding: 0 !important; font-size: 7.5pt !important; }
+    .app-header { border: none; padding: 0 0 6px; }
     .table-container { overflow: visible !important; max-height: none !important; border: none !important; }
     table { width: 100% !important; table-layout: fixed; border-collapse: collapse !important; }
     th, td { border: 0.5pt solid #475569 !important; padding: 2px 1px !important; }
-    .col-id, .col-name, .col-role, .col-qual, .col-stat, .col-stat-time, .col-stat-night { position: static !important; }
+    .col-staff, .col-stat, thead th { position: static !important; box-shadow: none !important; }
+    .shift-cell { width: auto; min-width: 0; max-width: none; }
+    .col-stat.s1, .col-stat.s2, .col-info { display: none !important; }
     thead { display: table-header-group !important; }
     tr { page-break-inside: avoid !important; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
@@ -116,7 +195,7 @@
 <div class="controls-bar no-print">
   <div>
     <button class="btn btn-menu" onclick="toggleDrawer()">≡ 設定・印刷</button>
-    <button class="btn btn-add" onclick="openAddEmpModal()">＋ 新規スタッフ追加</button>
+    <button class="btn btn-add" onclick="openEmpModal()">＋ 新規スタッフ追加</button>
   </div>
   <div>
     <button class="btn btn-pay" onclick="exportPayroll()">給料明細データ出力</button>
@@ -125,227 +204,451 @@
 </div>
 
 <div class="app-header">
-  <div class="header-left">
-    <div class="header-title-box">
-      <h1 id="disp-company">社会福祉法人 幸寿会</h1>
-      <div class="facility-badge" id="disp-facility">特別養護老人ホーム さくら苑 2F</div>
-    </div>
+  <div class="header-title-box">
+    <h1 id="disp-company"></h1>
+    <div class="facility-badge" id="disp-facility"></div>
   </div>
   <div class="header-center">
-    <h2 id="disp-title">2026年 10月度 勤務表</h2>
+    <button class="month-nav no-print" onclick="shiftMonth(-1)" title="前月">◀</button>
+    <h2 id="disp-title"></h2>
+    <button class="month-nav no-print" onclick="shiftMonth(1)" title="翌月">▶</button>
   </div>
   <div class="header-right">
-    <div><strong>期間:</strong> <span id="disp-period">2026/10/16 〜 2026/11/15</span></div>
-    <div><strong>締め:</strong> <span id="disp-closing">15日</span> ／ <strong>決済:</strong> <span id="disp-payment">翌月10日払い</span></div>
+    <div><strong>期間:</strong> <span id="disp-period"></span></div>
+    <div><strong>締め:</strong> <span id="disp-closing"></span> ／ <strong>決済:</strong> <span id="disp-payment"></span></div>
   </div>
+</div>
+
+<div class="palette no-print" id="palette">
+  <span class="palette-label">入力モード:</span>
 </div>
 
 <div class="table-container">
   <table id="shift-table">
-    <thead>
-      <tr id="head-row-day"></tr>
-      <tr id="head-row-week"></tr>
-    </thead>
+    <thead><tr id="head-row"></tr></thead>
     <tbody id="table-body"></tbody>
+    <tfoot id="table-foot"></tfoot>
   </table>
 </div>
 
-<div id="popover">
-  <button style="background:#0284c7" onclick="applyShift('日')">日勤</button>
-  <button style="background:#ca8a04" onclick="applyShift('早')">早出</button>
-  <button style="background:#be185d" onclick="applyShift('遅')">遅番</button>
-  <button style="background:#7c3aed" onclick="applyShift('夜')">夜勤</button>
-  <button style="background:#16a34a" onclick="applyShift('有')">有休</button>
-  <button style="background:#64748b" onclick="applyShift('休')">公休</button>
-</div>
+<div id="popover"></div>
 
 <div id="drawer-backdrop" onclick="toggleDrawer()"></div>
 <div id="drawer">
   <h3>事業所・締め日設定</h3>
   <div class="form-group">
     <label>会社名</label>
-    <input type="text" id="cfg-company" value="社会福祉法人 幸寿会" onchange="updateConfig()">
+    <input type="text" id="cfg-company" onchange="updateConfig()">
   </div>
   <div class="form-group">
     <label>施設・店舗名</label>
-    <input type="text" id="cfg-facility" value="特別養護老人ホーム さくら苑 2F" onchange="updateConfig()">
+    <input type="text" id="cfg-facility" onchange="updateConfig()">
   </div>
   <div class="form-group">
     <label>対象年 / 月</label>
-    <div style="display:flex; gap:6px;">
-      <input type="number" id="cfg-year" value="2026" onchange="updateConfig()">
-      <input type="number" id="cfg-month" value="10" min="1" max="12" onchange="updateConfig()">
+    <div class="form-row">
+      <input type="number" id="cfg-year" onchange="updateConfig()">
+      <input type="number" id="cfg-month" min="1" max="12" onchange="updateConfig()">
     </div>
   </div>
   <div class="form-group">
-    <label>締め日（1〜31 または 末日）</label>
-    <input type="text" id="cfg-closing" value="15" onchange="updateConfig()">
+    <label>締め日（1〜30 または 末日）</label>
+    <input type="text" id="cfg-closing" onchange="updateConfig()">
   </div>
   <div class="form-group">
     <label>給与決済日（支払日）</label>
-    <input type="text" id="cfg-payment" value="翌月10日払い" onchange="updateConfig()">
+    <input type="text" id="cfg-payment" onchange="updateConfig()">
+  </div>
+  <div class="form-group">
+    <label>1日あたりの必要人数（下回ると赤表示）</label>
+    <div class="form-row">
+      <div><small>日勤帯（日・早・遅）</small><input type="number" id="cfg-need-day" min="0" onchange="updateConfig()"></div>
+      <div><small>夜勤</small><input type="number" id="cfg-need-night" min="0" onchange="updateConfig()"></div>
+    </div>
   </div>
   <hr style="margin:20px 0; border:none; border-top:1px solid #e2e8f0;">
   <button class="btn btn-print" style="width:100%; justify-content:center;" onclick="window.print()">🖨️ 掲示板用に印刷 / PDF保存</button>
+  <button class="btn btn-sub" style="width:100%; justify-content:center; margin-top:8px;" onclick="clearPeriod()">この期間のシフトを初期化</button>
+  <p style="font-size:11px; color:#64748b;">※ 入力内容はこのブラウザに自動保存されます。</p>
 </div>
 
-<div id="modal-add" class="modal-box">
-  <h3>新規スタッフ追加（雇用契約連携）</h3>
-  <div class="form-group"><label>スタッフID</label><input type="text" id="new-id" value="EMP007"></div>
-  <div class="form-group"><label>氏名</label><input type="text" id="new-name" placeholder="例: 吉田 健二"></div>
-  <div class="form-group"><label>役職 / 立場</label><input type="text" id="new-role" placeholder="例: 派遣スタッフ, パート"></div>
-  <div class="form-group"><label>資格 / 雇用形態</label><input type="text" id="new-qual" placeholder="例: 介護福祉士 / 派遣"></div>
-  <div class="form-group"><label>勤務不可曜日</label><input type="text" id="new-unworkable" placeholder="例: 日,土 (カンマ区切り)"></div>
-  <div style="text-align:right; gap:8px; display:flex; justify-content:flex-end;">
-    <button class="btn" style="background:#e2e8f0; color:#334155;" onclick="closeModal('modal-add')">キャンセル</button>
-    <button class="btn btn-add" onclick="submitNewEmp()">追加してシフト反映</button>
+<div id="modal-backdrop" onclick="closeModals()"></div>
+
+<div id="modal-emp" class="modal-box">
+  <h3 id="emp-modal-title">新規スタッフ追加（雇用契約連携）</h3>
+  <div class="form-row">
+    <div class="form-group"><label>スタッフID</label><input type="text" id="emp-id"></div>
+    <div class="form-group"><label>氏名</label><input type="text" id="emp-name" placeholder="例: 吉田 健二"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>役職 / 立場</label><input type="text" id="emp-role" placeholder="例: 派遣スタッフ, パート"></div>
+    <div class="form-group"><label>資格 / 雇用形態</label><input type="text" id="emp-qual" placeholder="例: 介護福祉士 / 派遣"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>日勤帯 実働時間(h)</label><input type="number" step="0.5" min="0" id="emp-work"></div>
+    <div class="form-group"><label>夜勤 実働時間(h)</label><input type="number" step="0.5" min="0" id="emp-night"></div>
+  </div>
+  <div class="form-group">
+    <label>勤務不可曜日</label>
+    <div class="weekday-picks" id="emp-unwork"></div>
+  </div>
+  <div class="modal-actions">
+    <button class="btn btn-danger" id="emp-delete" style="margin-right:auto;" onclick="deleteEmp()">削除</button>
+    <button class="btn btn-sub" onclick="closeModals()">キャンセル</button>
+    <button class="btn btn-add" onclick="submitEmp()">保存してシフト反映</button>
   </div>
 </div>
 
 <div id="modal-pay" class="modal-box">
-  <h3>給料明細連携データ (JSON)</h3>
-  <textarea id="pay-json" style="width:100%; height:180px; font-family:monospace; font-size:11px;"></textarea>
-  <div style="text-align:right; margin-top:10px;">
-    <button class="btn" style="background:#0f172a; color:#fff;" onclick="closeModal('modal-pay')">閉じる</button>
+  <h3>給料明細連携データ</h3>
+  <textarea id="pay-json" style="width:100%; height:200px; font-family:monospace; font-size:11px;" readonly></textarea>
+  <div class="modal-actions">
+    <button class="btn btn-sub" onclick="copyPayroll()">コピー</button>
+    <button class="btn btn-pay" onclick="downloadPayroll('csv')">CSVダウンロード</button>
+    <button class="btn btn-pay" onclick="downloadPayroll('json')">JSONダウンロード</button>
+    <button class="btn" style="background:#0f172a; color:#fff;" onclick="closeModals()">閉じる</button>
   </div>
 </div>
 
+<div id="toast"></div>
+
 <script>
-const holidays2026 = ["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-20","2026-04-29","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-07-20","2026-08-11","2026-09-21","2026-09-22","2026-09-23","2026-10-12","2026-11-03","2026-11-23"];
+const STORAGE_KEY = "shift-management-v2";
+
+const holidays = new Set([
+  // 2025
+  "2025-01-01","2025-01-13","2025-02-11","2025-02-23","2025-02-24","2025-03-20","2025-04-29","2025-05-03","2025-05-04","2025-05-05","2025-05-06","2025-07-21","2025-08-11","2025-09-15","2025-09-23","2025-10-13","2025-11-03","2025-11-23","2025-11-24",
+  // 2026
+  "2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-20","2026-04-29","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-07-20","2026-08-11","2026-09-21","2026-09-22","2026-09-23","2026-10-12","2026-11-03","2026-11-23",
+  // 2027
+  "2027-01-01","2027-01-11","2027-02-11","2027-02-23","2027-03-21","2027-03-22","2027-04-29","2027-05-03","2027-05-04","2027-05-05","2027-07-19","2027-08-11","2027-09-20","2027-09-23","2027-10-11","2027-11-03","2027-11-23"
+]);
 const weekdaysJp = ["日","月","火","水","木","金","土"];
 
-let employees = [
+// シフト種別の定義（表示・集計・パレットはすべてここから生成）
+const SHIFT_TYPES = [
+  { code: "日", label: "日勤", color: "#0284c7", kind: "day" },
+  { code: "早", label: "早出", color: "#ca8a04", kind: "day" },
+  { code: "遅", label: "遅番", color: "#be185d", kind: "day" },
+  { code: "夜", label: "夜勤", color: "#7c3aed", kind: "night" },
+  { code: "明", label: "明け", color: "#a78bfa", kind: "off" },
+  { code: "有", label: "有休", color: "#16a34a", kind: "paid" },
+  { code: "休", label: "公休", color: "#64748b", kind: "off" }
+];
+const SHIFT_BY_CODE = Object.fromEntries(SHIFT_TYPES.map(s => [s.code, s]));
+
+const DEFAULT_CONFIG = {
+  company: "社会福祉法人 幸寿会",
+  facility: "特別養護老人ホーム さくら苑 2F",
+  year: 2026, month: 10, closing: "15", payment: "翌月10日払い",
+  needDay: 3, needNight: 1
+};
+
+const DEFAULT_EMPLOYEES = [
   { id: "EMP001", name: "山田 太郎", role: "リーダー", qual: "介護福祉士 / 常勤", unwork: [0], times: { work: 8, night: 14 } },
   { id: "EMP002", name: "佐藤 花子", role: "主任", qual: "看護師 / 常勤", unwork: [0, 6], times: { work: 8, night: 0 } },
   { id: "EMP003", name: "鈴木 一郎", role: "スタッフ", qual: "調理師 / パート", unwork: [], times: { work: 5.5, night: 0 } },
-  { id: "EMP004", name: "高橋 健二", role: "フロア長", qual: "介護福祉士 / 夜勤専従", unwork: [], times: { work: 15, night: 15 } },
+  { id: "EMP004", name: "高橋 健二", role: "フロア長", qual: "介護福祉士 / 夜勤専従", unwork: [], times: { work: 8, night: 15 } },
   { id: "EMP005", name: "田中 美咲", role: "派遣", qual: "介護助手 / 派遣スタッフ", unwork: [0, 6], times: { work: 8, night: 0 } }
 ];
 
+let config = { ...DEFAULT_CONFIG };
+let employees = structuredClone(DEFAULT_EMPLOYEES);
 let shiftData = {};
-let activeTarget = null;
+let activeTarget = null;   // ポップオーバーの対象セル
+let brush = null;          // 選択中のブラシ（null = ポップオーバーで選択）
+let painting = false;
+let editingEmpId = null;
+let showInfo = false;      // 役職・資格列を表示するか（通常は氏名のみ）
 
-function getCalendarDays() {
-  const y = parseInt(document.getElementById("cfg-year").value);
-  const m = parseInt(document.getElementById("cfg-month").value);
-  const closingStr = document.getElementById("cfg-closing").value.trim();
-  let days = [];
-
-  if (closingStr === "末日" || closingStr === "31" || closingStr === "") {
-    const lastDay = new Date(y, m, 0).getDate();
-    for (let d = 1; d <= lastDay; d++) {
-      days.push(new Date(y, m - 1, d));
-    }
-  } else {
-    const cDay = parseInt(closingStr);
-    const prevMonthLast = new Date(y, m - 1, 0).getDate();
-    const startDay = Math.min(cDay + 1, prevMonthLast);
-    for (let d = startDay; d <= prevMonthLast; d++) {
-      days.push(new Date(y, m - 2, d));
-    }
-    for (let d = 1; d <= cDay; d++) {
-      days.push(new Date(y, m - 1, d));
-    }
-  }
-  return days;
+/* ---------- 保存・読み込み ---------- */
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ config, employees, shiftData })); } catch (e) { /* 保存不可の環境では無視 */ }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.config) config = { ...DEFAULT_CONFIG, ...data.config };
+    if (Array.isArray(data.employees)) employees = data.employees;
+    if (data.shiftData) shiftData = data.shiftData;
+  } catch (e) { /* 壊れたデータは無視して初期値で起動 */ }
 }
 
+/* ---------- ユーティリティ ---------- */
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 function formatDate(dt) {
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 }
+function parseISO(iso) {
+  // new Date("YYYY-MM-DD") は UTC 扱いになり曜日がずれることがあるためローカル日付で生成
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function lastDayOf(y, m) { return new Date(y, m, 0).getDate(); } // m: 1-12
+function dayClass(dt) {
+  const w = dt.getDay();
+  if (holidays.has(formatDate(dt))) return "holiday";
+  return w === 0 ? "sun" : (w === 6 ? "sat" : "");
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+/* ---------- 期間計算 ---------- */
+function isMonthEndClosing() {
+  const c = String(config.closing).trim();
+  const n = parseInt(c, 10);
+  return c === "" || c.includes("末") || isNaN(n) || n >= 31 || n < 1;
+}
+function getCalendarDays() {
+  const y = config.year, m = config.month;
+  let start, end;
+  if (isMonthEndClosing()) {
+    start = new Date(y, m - 1, 1);
+    end = new Date(y, m - 1, lastDayOf(y, m));
+  } else {
+    const c = parseInt(config.closing, 10);
+    // 前月の締め日の翌日 〜 当月の締め日（短い月は末日で丸める）
+    const prevY = m === 1 ? y - 1 : y, prevM = m === 1 ? 12 : m - 1;
+    start = new Date(prevY, prevM - 1, Math.min(c, lastDayOf(prevY, prevM)) + 1);
+    end = new Date(y, m - 1, Math.min(c, lastDayOf(y, m)));
+  }
+  const days = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) days.push(new Date(d));
+  return days;
+}
+
+/* ---------- 集計 ---------- */
+function getShift(emp, dt) {
+  const iso = formatDate(dt);
+  if (!shiftData[emp.id]) shiftData[emp.id] = {};
+  if (!shiftData[emp.id][iso]) {
+    shiftData[emp.id][iso] = emp.unwork.includes(dt.getDay()) ? "休" : "日";
+  }
+  return shiftData[emp.id][iso];
+}
+function summarize(emp, days) {
+  let workDays = 0, hours = 0, nightHours = 0, paidDays = 0, nightCount = 0;
+  days.forEach(dt => {
+    const t = SHIFT_BY_CODE[getShift(emp, dt)];
+    if (!t) return;
+    if (t.kind === "day") { workDays++; hours += emp.times.work; }
+    if (t.kind === "night") { workDays++; nightCount++; hours += emp.times.night; nightHours += emp.times.night; }
+    if (t.kind === "paid") paidDays++;
+  });
+  return { workDays, hours, nightHours, paidDays, nightCount };
+}
+function isViolation(emp, dt, code) {
+  const t = SHIFT_BY_CODE[code];
+  return emp.unwork.includes(dt.getDay()) && t && (t.kind === "day" || t.kind === "night");
+}
+
+/* ---------- 描画 ---------- */
+function renderHeader() {
+  document.getElementById("disp-company").textContent = config.company;
+  document.getElementById("disp-facility").textContent = config.facility;
+  document.getElementById("disp-title").textContent = `${config.year}年 ${config.month}月度 勤務表`;
+  document.getElementById("disp-closing").textContent = isMonthEndClosing() ? "末日" : `${parseInt(config.closing, 10)}日`;
+  document.getElementById("disp-payment").textContent = config.payment;
+}
 
 function render() {
+  renderHeader();
   const days = getCalendarDays();
   if (days.length === 0) return;
+  document.getElementById("disp-period").textContent = `${formatDate(days[0])} 〜 ${formatDate(days[days.length - 1])}`;
 
-  const startStr = formatDate(days[0]);
-  const endStr = formatDate(days[days.length - 1]);
-  document.getElementById("disp-period").innerText = `${startStr} 〜 ${endStr}`;
-  document.getElementById("disp-company").innerText = document.getElementById("cfg-company").value;
-  document.getElementById("disp-facility").innerText = document.getElementById("cfg-facility").value;
-  document.getElementById("disp-title").innerText = `${document.getElementById("cfg-year").value}年 ${document.getElementById("cfg-month").value}月度 勤務表`;
-  document.getElementById("disp-closing").innerText = document.getElementById("cfg-closing").value + (document.getElementById("cfg-closing").value.includes("末") ? "" : "日");
-  document.getElementById("disp-payment").innerText = document.getElementById("cfg-payment").value;
-
-  const trDay = document.getElementById("head-row-day");
-  const trWeek = document.getElementById("head-row-week");
-  trDay.innerHTML = `<th class="col-id" rowspan="2">ID</th><th class="col-name" rowspan="2">氏名</th><th class="col-role" rowspan="2">役職</th><th class="col-qual" rowspan="2">資格・立場</th>`;
-  trWeek.innerHTML = "";
-
+  // ヘッダー
+  let head = `<th class="col-staff">氏名</th><th class="col-info">ID</th><th class="col-info">役職</th><th class="col-info">資格・立場</th>`;
   days.forEach(dt => {
-    const d = dt.getDate();
-    const w = dt.getDay();
-    const iso = formatDate(dt);
-    const isHoli = holidays2026.includes(iso);
-    let cls = isHoli ? "holiday" : (w === 0 ? "sun" : (w === 6 ? "sat" : ""));
-    trDay.innerHTML += `<th class="${cls}">${d}</th>`;
-    trWeek.innerHTML += `<th class="${cls}">${weekdaysJp[w]}</th>`;
+    head += `<th class="${dayClass(dt)}">${dt.getDate()}<span class="wd">${weekdaysJp[dt.getDay()]}</span></th>`;
   });
+  head += `<th class="col-stat s1">夜勤<span class="wd">時間</span></th><th class="col-stat s2">総実働</th><th class="col-stat s3">出勤<span class="wd">日数</span></th>`;
+  document.getElementById("head-row").innerHTML = head;
 
-  trDay.innerHTML += `<th class="col-stat-night" rowspan="2">夜勤時間</th><th class="col-stat-time" rowspan="2">総実働</th><th class="col-stat" rowspan="2">出勤日数</th>`;
-
-  const tbody = document.getElementById("table-body");
-  tbody.innerHTML = "";
-
+  // 本体
+  const dayCount = days.map(() => 0), nightCount = days.map(() => 0);
+  let body = "";
   employees.forEach(emp => {
-    if (!shiftData[emp.id]) shiftData[emp.id] = {};
-    let workDays = 0, totalHours = 0, totalNight = 0;
-
-    let tr = document.createElement("tr");
-    tr.innerHTML = `<td class="col-id">${emp.id}</td><td class="col-name">${emp.name}</td><td class="col-role">${emp.role}</td><td class="col-qual">${emp.qual}</td>`;
-
-    days.forEach(dt => {
-      const iso = formatDate(dt);
-      const w = dt.getDay();
-      const isHoli = holidays2026.includes(iso);
-      let cls = isHoli ? "holiday" : (w === 0 ? "sun" : (w === 6 ? "sat" : ""));
-
-      if (!shiftData[emp.id][iso]) {
-        shiftData[emp.id][iso] = emp.unwork.includes(w) ? "休" : "日";
-      }
-
-      const val = shiftData[emp.id][iso];
-      if (["日","早","遅","夜"].includes(val)) {
-        workDays++;
-        totalHours += (val === "夜" ? emp.times.night : emp.times.work);
-      }
-      if (val === "夜") {
-        totalNight += emp.times.night;
-      }
-
-      tr.innerHTML += `<td class="shift-cell ${cls} shift-${val}" onclick="openPopover(event, '${emp.id}', '${iso}')">${val}</td>`;
+    let row = `<tr><td class="col-staff" title="${esc(emp.id)} / ${esc(emp.role)} / ${esc(emp.qual)}">
+      <div class="staff-name"><span>${esc(emp.name)}</span>
+        <span class="staff-actions no-print"><button onclick="openEmpModal('${esc(emp.id)}')" title="編集">✎</button></span></div></td>
+      <td class="col-info">${esc(emp.id)}</td><td class="col-info">${esc(emp.role)}</td><td class="col-info">${esc(emp.qual)}</td>`;
+    days.forEach((dt, i) => {
+      const val = getShift(emp, dt);
+      const t = SHIFT_BY_CODE[val];
+      if (t && t.kind === "day") dayCount[i]++;
+      if (t && t.kind === "night") nightCount[i]++;
+      const vio = isViolation(emp, dt, val) ? " violation" : "";
+      row += `<td class="shift-cell ${dayClass(dt)} shift-${esc(val)}${vio}" data-emp="${esc(emp.id)}" data-iso="${formatDate(dt)}">${esc(val)}</td>`;
     });
-
-    tr.innerHTML += `<td class="col-stat-night">${totalNight}h</td><td class="col-stat-time">${totalHours}h</td><td class="col-stat">${workDays}日</td>`;
-    tbody.appendChild(tr);
+    const s = summarize(emp, days);
+    row += `<td class="col-stat s1">${s.nightHours}h</td><td class="col-stat s2">${s.hours}h</td><td class="col-stat s3">${s.workDays}日</td></tr>`;
+    body += row;
   });
+  document.getElementById("table-body").innerHTML = body;
+
+  // 日別人数
+  const footRow = (label, counts, need) => {
+    let r = `<tr><td class="col-staff" title="必要人数 ${need}">${label}<div class="staff-meta">必要${need}人</div></td><td class="col-info" colspan="3"></td>`;
+    counts.forEach(c => { r += `<td class="${c < need ? "short" : ""}">${c}</td>`; });
+    return r + `<td class="col-stat s1"></td><td class="col-stat s2"></td><td class="col-stat s3"></td></tr>`;
+  };
+  document.getElementById("table-foot").innerHTML =
+    footRow("日勤帯", dayCount, config.needDay) + footRow("夜勤", nightCount, config.needNight);
+
+  save();
 }
 
-function openPopover(e, empId, iso) {
-  activeTarget = { empId, iso };
+function renderPalette() {
+  const p = document.getElementById("palette");
+  let html = `<span class="palette-label">入力モード:</span>
+    <button class="brush brush-none ${brush === null ? "active" : ""}" data-brush="">クリックで選択</button>`;
+  SHIFT_TYPES.forEach(t => {
+    html += `<button class="brush ${brush === t.code ? "active" : ""}" style="background:${t.color}; color:#fff;" data-brush="${t.code}">${t.label}</button>`;
+  });
+  html += `<label class="info-toggle"><input type="checkbox" id="toggle-info" ${showInfo ? "checked" : ""}>役職・資格も表示</label>`;
+  html += `<span class="palette-hint">ブラシを選ぶとドラッグで連続入力できます（Esc で解除）</span>`;
+  p.innerHTML = html;
+
+  const pop = document.getElementById("popover");
+  pop.innerHTML = SHIFT_TYPES.map(t => `<button style="background:${t.color}" data-code="${t.code}">${t.label}</button>`).join("");
+}
+
+/* ---------- セル入力 ---------- */
+function setShift(empId, iso, code, { confirmViolation }) {
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) return false;
+  const dt = parseISO(iso);
+  if (confirmViolation && isViolation(emp, dt, code)) {
+    if (!confirm(`【契約警告】${emp.name} さんは契約上 ${weekdaysJp[dt.getDay()]}曜日 勤務不可です。登録しますか？`)) return false;
+  }
+  if (shiftData[empId][iso] === code) return false;
+  shiftData[empId][iso] = code;
+  return true;
+}
+
+function openPopover(cell) {
+  activeTarget = { empId: cell.dataset.emp, iso: cell.dataset.iso };
   const pop = document.getElementById("popover");
   pop.style.display = "flex";
-  pop.style.left = `${e.pageX - 20}px`;
-  pop.style.top = `${e.pageY + 10}px`;
+  const r = cell.getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = Math.min(r.left, window.innerWidth - pw - 8);
+  let top = r.bottom + 4;
+  if (top + ph > window.innerHeight - 8) top = r.top - ph - 4; // 下に入らなければ上に出す
+  pop.style.left = `${Math.max(8, left)}px`;
+  pop.style.top = `${Math.max(8, top)}px`;
+}
+function closePopover() {
+  document.getElementById("popover").style.display = "none";
+  activeTarget = null;
 }
 
-function applyShift(type) {
-  if (!activeTarget) return;
-  const { empId, iso } = activeTarget;
-  const emp = employees.find(e => e.id === empId);
-  const dt = new Date(iso);
-  if (emp.unwork.includes(dt.getDay()) && !["休","有"].includes(type)) {
-    if (!confirm(`【契約警告】${emp.name} さんは契約上 ${weekdaysJp[dt.getDay()]}曜日 勤務不可です。登録しますか？`)) {
-      document.getElementById("popover").style.display = "none";
-      return;
+function paintAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const cell = el && el.closest(".shift-cell");
+  if (cell && setShift(cell.dataset.emp, cell.dataset.iso, brush, { confirmViolation: false })) render();
+}
+
+function initEvents() {
+  const table = document.getElementById("shift-table");
+
+  table.addEventListener("pointerdown", e => {
+    const cell = e.target.closest(".shift-cell");
+    if (!cell) return;
+    if (brush) {
+      painting = true;
+      e.preventDefault();
+      paintAt(e.clientX, e.clientY);
+    } else {
+      e.stopPropagation();
+      openPopover(cell);
     }
-  }
-  shiftData[empId][iso] = type;
-  document.getElementById("popover").style.display = "none";
+  });
+  document.addEventListener("pointermove", e => { if (painting) paintAt(e.clientX, e.clientY); });
+  document.addEventListener("pointerup", () => { painting = false; });
+
+  document.getElementById("popover").addEventListener("click", e => {
+    const btn = e.target.closest("button[data-code]");
+    if (!btn || !activeTarget) return;
+    const { empId, iso } = activeTarget;
+    closePopover();
+    if (setShift(empId, iso, btn.dataset.code, { confirmViolation: true })) render();
+  });
+  document.getElementById("popover").addEventListener("pointerdown", e => e.stopPropagation());
+  document.addEventListener("pointerdown", closePopover);
+
+  document.getElementById("palette").addEventListener("change", e => {
+    if (e.target.id !== "toggle-info") return;
+    showInfo = e.target.checked;
+    document.body.classList.toggle("show-info", showInfo);
+  });
+  document.getElementById("palette").addEventListener("click", e => {
+    const btn = e.target.closest("button[data-brush]");
+    if (!btn) return;
+    brush = btn.dataset.brush || null;
+    renderPalette();
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    closePopover();
+    closeModals();
+    if (brush) { brush = null; renderPalette(); }
+  });
+}
+
+/* ---------- 設定 ---------- */
+function fillConfigForm() {
+  document.getElementById("cfg-company").value = config.company;
+  document.getElementById("cfg-facility").value = config.facility;
+  document.getElementById("cfg-year").value = config.year;
+  document.getElementById("cfg-month").value = config.month;
+  document.getElementById("cfg-closing").value = config.closing;
+  document.getElementById("cfg-payment").value = config.payment;
+  document.getElementById("cfg-need-day").value = config.needDay;
+  document.getElementById("cfg-need-night").value = config.needNight;
+}
+function updateConfig() {
+  const month = parseInt(document.getElementById("cfg-month").value, 10);
+  const year = parseInt(document.getElementById("cfg-year").value, 10);
+  config = {
+    company: document.getElementById("cfg-company").value,
+    facility: document.getElementById("cfg-facility").value,
+    year: isNaN(year) ? config.year : year,
+    month: isNaN(month) ? config.month : Math.min(12, Math.max(1, month)),
+    closing: document.getElementById("cfg-closing").value.trim(),
+    payment: document.getElementById("cfg-payment").value,
+    needDay: Math.max(0, parseInt(document.getElementById("cfg-need-day").value, 10) || 0),
+    needNight: Math.max(0, parseInt(document.getElementById("cfg-need-night").value, 10) || 0)
+  };
+  fillConfigForm();
   render();
 }
-
-function updateConfig() { render(); }
+function shiftMonth(delta) {
+  let m = config.month + delta, y = config.year;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  config.year = y; config.month = m;
+  fillConfigForm();
+  render();
+}
+function clearPeriod() {
+  if (!confirm("表示中の期間のシフトを初期状態（契約上の休みは公休、それ以外は日勤）に戻しますか？")) return;
+  const isos = getCalendarDays().map(formatDate);
+  employees.forEach(emp => isos.forEach(iso => { if (shiftData[emp.id]) delete shiftData[emp.id][iso]; }));
+  render();
+  toast("この期間のシフトを初期化しました");
+}
 function toggleDrawer() {
   const d = document.getElementById("drawer");
   const b = document.getElementById("drawer-backdrop");
@@ -353,55 +656,129 @@ function toggleDrawer() {
   b.style.display = d.classList.contains("open") ? "block" : "none";
 }
 
-function openAddEmpModal() { document.getElementById("modal-add").style.display = "block"; }
-function closeModal(id) { document.getElementById(id).style.display = "none"; }
-
-function submitNewEmp() {
-  const id = document.getElementById("new-id").value.trim();
-  const name = document.getElementById("new-name").value.trim();
+/* ---------- スタッフ追加・編集 ---------- */
+function nextEmpId() {
+  const nums = employees.map(e => parseInt(String(e.id).replace(/\D/g, ""), 10)).filter(n => !isNaN(n));
+  return "EMP" + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3, "0");
+}
+function openModal(id) {
+  document.getElementById("modal-backdrop").style.display = "block";
+  document.getElementById(id).style.display = "block";
+}
+function closeModals() {
+  document.getElementById("modal-backdrop").style.display = "none";
+  document.querySelectorAll(".modal-box").forEach(m => m.style.display = "none");
+}
+function openEmpModal(empId) {
+  const emp = empId ? employees.find(e => e.id === empId) : null;
+  editingEmpId = emp ? emp.id : null;
+  document.getElementById("emp-modal-title").textContent = emp ? "スタッフ情報の編集" : "新規スタッフ追加（雇用契約連携）";
+  document.getElementById("emp-id").value = emp ? emp.id : nextEmpId();
+  document.getElementById("emp-id").disabled = !!emp;
+  document.getElementById("emp-name").value = emp ? emp.name : "";
+  document.getElementById("emp-role").value = emp ? emp.role : "";
+  document.getElementById("emp-qual").value = emp ? emp.qual : "";
+  document.getElementById("emp-work").value = emp ? emp.times.work : 8;
+  document.getElementById("emp-night").value = emp ? emp.times.night : 0;
+  document.getElementById("emp-delete").style.display = emp ? "" : "none";
+  document.getElementById("emp-unwork").innerHTML = weekdaysJp.map((w, i) =>
+    `<label><input type="checkbox" value="${i}" ${emp && emp.unwork.includes(i) ? "checked" : ""}>${w}</label>`).join("");
+  openModal("modal-emp");
+  document.getElementById("emp-name").focus();
+}
+function submitEmp() {
+  const id = document.getElementById("emp-id").value.trim();
+  const name = document.getElementById("emp-name").value.trim();
+  if (!id) return alert("スタッフIDを入力してください");
   if (!name) return alert("氏名を入力してください");
-  const unworkStr = document.getElementById("new-unworkable").value;
-  const unwork = [];
-  if (unworkStr.includes("日")) unwork.push(0);
-  if (unworkStr.includes("土")) unwork.push(6);
+  if (!editingEmpId && employees.some(e => e.id === id)) return alert(`スタッフID「${id}」は既に使われています`);
 
-  employees.push({
+  const data = {
     id, name,
-    role: document.getElementById("new-role").value || "スタッフ",
-    qual: document.getElementById("new-qual").value || "介護福祉士",
-    unwork, times: { work: 8, night: 14 }
-  });
-  closeModal("modal-add");
+    role: document.getElementById("emp-role").value.trim() || "スタッフ",
+    qual: document.getElementById("emp-qual").value.trim() || "介護福祉士",
+    unwork: [...document.querySelectorAll("#emp-unwork input:checked")].map(i => parseInt(i.value, 10)),
+    times: {
+      work: parseFloat(document.getElementById("emp-work").value) || 0,
+      night: parseFloat(document.getElementById("emp-night").value) || 0
+    }
+  };
+  if (editingEmpId) {
+    const idx = employees.findIndex(e => e.id === editingEmpId);
+    employees[idx] = data;
+    toast(`${name} さんの情報を更新しました`);
+  } else {
+    employees.push(data);
+    toast(`${name} さんを追加しました`);
+  }
+  closeModals();
   render();
 }
+function deleteEmp() {
+  const emp = employees.find(e => e.id === editingEmpId);
+  if (!emp || !confirm(`${emp.name} さんを削除しますか？（シフトデータも削除されます）`)) return;
+  employees = employees.filter(e => e.id !== emp.id);
+  delete shiftData[emp.id];
+  closeModals();
+  render();
+  toast(`${emp.name} さんを削除しました`);
+}
 
-function exportPayroll() {
+/* ---------- 給与連携 ---------- */
+let payrollCache = [];
+function buildPayroll() {
   const days = getCalendarDays();
-  const out = employees.map(emp => {
-    let daysCnt = 0, hours = 0, nightHours = 0;
-    days.forEach(dt => {
-      const iso = formatDate(dt);
-      const val = shiftData[emp.id][iso];
-      if (["日","早","遅","夜"].includes(val)) {
-        daysCnt++;
-        hours += (val === "夜" ? emp.times.night : emp.times.work);
-      }
-      if (val === "夜") nightHours += emp.times.night;
-    });
+  const period = `${formatDate(days[0])}〜${formatDate(days[days.length - 1])}`;
+  return employees.map(emp => {
+    const s = summarize(emp, days);
     return {
       employeeId: emp.id,
       name: emp.name,
-      targetPeriod: document.getElementById("disp-period").innerText,
-      workDays: daysCnt,
-      totalHours: hours,
-      nightHours: nightHours
+      targetPeriod: period,
+      workDays: s.workDays,
+      nightShifts: s.nightCount,
+      paidLeaveDays: s.paidDays,
+      totalHours: s.hours,
+      nightHours: s.nightHours
     };
   });
-  document.getElementById("pay-json").value = JSON.stringify(out, null, 2);
-  document.getElementById("modal-pay").style.display = "block";
+}
+function exportPayroll() {
+  payrollCache = buildPayroll();
+  document.getElementById("pay-json").value = JSON.stringify(payrollCache, null, 2);
+  openModal("modal-pay");
+}
+function toCSV(rows) {
+  const headers = ["社員ID","氏名","対象期間","出勤日数","夜勤回数","有休日数","総実働(h)","夜勤時間(h)"];
+  const keys = ["employeeId","name","targetPeriod","workDays","nightShifts","paidLeaveDays","totalHours","nightHours"];
+  const q = v => `"${String(v).replace(/"/g, '""')}"`;
+  return [headers.map(q).join(","), ...rows.map(r => keys.map(k => q(r[k])).join(","))].join("\r\n");
+}
+function downloadPayroll(type) {
+  const isCsv = type === "csv";
+  // Excel で文字化けしないよう CSV には BOM を付ける
+  const content = isCsv ? "\uFEFF" + toCSV(payrollCache) : JSON.stringify(payrollCache, null, 2);
+  const blob = new Blob([content], { type: isCsv ? "text/csv" : "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `payroll_${config.year}-${String(config.month).padStart(2, "0")}.${type}`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function copyPayroll() {
+  const ta = document.getElementById("pay-json");
+  (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject())
+    .then(() => toast("コピーしました"))
+    .catch(() => { ta.select(); document.execCommand("copy"); toast("コピーしました"); });
 }
 
-window.addEventListener("DOMContentLoaded", () => render());
+window.addEventListener("DOMContentLoaded", () => {
+  load();
+  fillConfigForm();
+  renderPalette();
+  initEvents();
+  render();
+});
 </script>
 </body>
 </html>
