@@ -66,6 +66,7 @@
   .table-container {
     max-height: 72vh; overflow: auto; border: 1px solid var(--border-color);
     background: #fff; border-radius: 4px; position: relative;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   }
   table { border-collapse: separate; border-spacing: 0; font-size: 12px; white-space: nowrap; }
   th, td { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 4px 4px; text-align: center; }
@@ -81,6 +82,7 @@
   }
   .staff-name { font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
   .staff-meta { font-size: 10px; color: #64748b; font-weight: normal; }
+  .mobile-summary { display: none; }
   /* 役職・資格列：通常は非表示。「詳細表示」ON のときだけスクロールで流れる列として出す */
   .col-info { display: none; text-align: left; font-size: 11px; color: #475569; }
   body.show-info .col-info { display: table-cell; }
@@ -105,8 +107,9 @@
 
   .shift-cell {
     width: var(--day-w); min-width: var(--day-w); max-width: var(--day-w);
-    cursor: pointer; user-select: none; touch-action: none; position: relative;
+    cursor: pointer; user-select: none; touch-action: pan-x pan-y; position: relative;
   }
+  body.brush-active .shift-cell { touch-action: none; }
   .shift-cell:hover { outline: 2px solid #2563eb; outline-offset: -2px; }
   .shift-日 { background: #e0f2fe; color: #0369a1; }
   .shift-早 { background: #fef9c3; color: #854d0e; }
@@ -165,11 +168,49 @@
   }
   #toast.show { opacity: 1; }
 
+  .mobile-period-nav { display: none; }
+
   /* スマホ・狭い画面：固定列を細くし、集計列は固定しない（日付を見やすく） */
   @media (max-width: 760px) {
-    :root { --staff-w: 84px; }
-    body { padding: 8px; }
-    .col-stat { right: auto !important; box-shadow: none !important; }
+    :root { --staff-w: 90px; --day-w: clamp(38px, calc((100vw - 102px) / 7), 42px); }
+    body { padding: 6px; font-size: 14px; }
+    .controls-bar { gap: 6px; }
+    .controls-bar > div { width: 100%; gap: 6px; }
+    .controls-bar .btn { flex: 1; justify-content: center; min-height: 42px; padding: 8px; }
+    .app-header { padding: 10px; align-items: stretch; gap: 8px; }
+    .header-title-box { text-align: center; }
+    .header-title-box h1 { font-size: 16px; }
+    .header-center { justify-content: center; order: -1; }
+    .header-center h2 { font-size: 15px; min-width: 160px; }
+    .header-right { text-align: center; }
+    .palette { flex-wrap: nowrap; overflow-x: auto; padding: 8px; scrollbar-width: thin; }
+    .palette-label, .palette-hint { display: none; }
+    .brush, .info-toggle { flex: 0 0 auto; min-height: 38px; }
+    .mobile-period-nav {
+      display: grid; grid-template-columns: minmax(82px, 1fr) minmax(120px, 1.4fr) minmax(82px, 1fr);
+      align-items: center; gap: 6px; margin-bottom: 8px; padding: 8px;
+      background: #fff; border: 1px solid var(--border-color); border-radius: 8px;
+    }
+    .mobile-period-nav button {
+      min-height: 40px; border: 1px solid var(--border-color); border-radius: 6px;
+      background: #f8fafc; color: #0f172a; font-weight: 700;
+    }
+    .mobile-period-nav button:disabled { opacity: 0.4; }
+    .mobile-period-nav strong { text-align: center; font-size: 13px; line-height: 1.3; }
+    .mobile-swipe-hint { grid-column: 1 / -1; text-align: center; font-size: 11px; color: #64748b; }
+    .table-container { max-height: 60vh; border-radius: 8px; }
+    table { min-width: max-content; font-size: 13px; }
+    th, td { padding: 8px 4px; }
+    thead th { line-height: 1.4; }
+    .col-staff { text-align: left; }
+    .staff-name { align-items: flex-start; font-size: 13px; }
+    .mobile-summary { display: block; margin-top: 3px; line-height: 1.3; }
+    .shift-cell { font-size: 14px; font-weight: 700; }
+    .col-stat { display: none; position: static; }
+    body.show-info .col-info { display: none; }
+    #popover { max-width: calc(100vw - 16px); padding: 8px; }
+    #popover button { min-width: 58px; min-height: 42px; font-size: 14px; }
+    #drawer { width: min(320px, 88vw); }
     .palette-hint { display: none; }
   }
 
@@ -221,6 +262,13 @@
 
 <div class="palette no-print" id="palette">
   <span class="palette-label">入力モード:</span>
+</div>
+
+<div class="mobile-period-nav no-print" id="mobile-period-nav" aria-label="スマホ用表示期間の切り替え">
+  <button type="button" id="mobile-prev" onclick="shiftMobileWeek(-1)">‹ 前の7日</button>
+  <strong id="mobile-range"></strong>
+  <button type="button" id="mobile-next" onclick="shiftMobileWeek(1)">次の7日 ›</button>
+  <span class="mobile-swipe-hint">シフトをタップして変更できます</span>
 </div>
 
 <div class="table-container">
@@ -360,6 +408,8 @@ let brush = null;          // 選択中のブラシ（null = ポップオーバ�
 let painting = false;
 let editingEmpId = null;
 let showInfo = false;      // 役職・資格列を表示するか（通常は氏名のみ）
+let mobileWeekStart = 0;   // スマホでは7日ずつ表示する
+let wasMobileView = window.matchMedia("(max-width: 760px)").matches;
 
 /* ---------- 保存・読み込み ---------- */
 function save() {
@@ -400,6 +450,29 @@ function toast(msg) {
   t.classList.add("show");
   clearTimeout(toast._t);
   toast._t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+function isMobileView() {
+  return window.matchMedia("(max-width: 760px)").matches;
+}
+function getVisibleDays(days) {
+  if (!isMobileView()) return days;
+  const maxStart = Math.max(0, Math.floor((days.length - 1) / 7) * 7);
+  mobileWeekStart = Math.min(maxStart, Math.max(0, mobileWeekStart));
+  return days.slice(mobileWeekStart, mobileWeekStart + 7);
+}
+function renderMobilePeriodNav(days, visibleDays) {
+  if (!visibleDays.length) return;
+  const first = visibleDays[0], last = visibleDays[visibleDays.length - 1];
+  const label = `${first.getMonth() + 1}/${first.getDate()}（${weekdaysJp[first.getDay()]}）` +
+    `〜 ${last.getMonth() + 1}/${last.getDate()}（${weekdaysJp[last.getDay()]}）`;
+  document.getElementById("mobile-range").textContent = label;
+  document.getElementById("mobile-prev").disabled = mobileWeekStart === 0;
+  document.getElementById("mobile-next").disabled = mobileWeekStart + 7 >= days.length;
+}
+function shiftMobileWeek(direction) {
+  mobileWeekStart += direction * 7;
+  render();
+  document.querySelector(".table-container").scrollLeft = 0;
 }
 
 /* ---------- 期間計算 ---------- */
@@ -464,33 +537,36 @@ function render() {
   renderHeader();
   const days = getCalendarDays();
   if (days.length === 0) return;
+  const visibleDays = getVisibleDays(days);
+  renderMobilePeriodNav(days, visibleDays);
   document.getElementById("disp-period").textContent = `${formatDate(days[0])} 〜 ${formatDate(days[days.length - 1])}`;
 
   // ヘッダー
   let head = `<th class="col-staff">氏名</th><th class="col-info">ID</th><th class="col-info">役職</th><th class="col-info">資格・立場</th>`;
-  days.forEach(dt => {
+  visibleDays.forEach(dt => {
     head += `<th class="${dayClass(dt)}">${dt.getDate()}<span class="wd">${weekdaysJp[dt.getDay()]}</span></th>`;
   });
   head += `<th class="col-stat s1">夜勤<span class="wd">時間</span></th><th class="col-stat s2">総実働</th><th class="col-stat s3">出勤<span class="wd">日数</span></th>`;
   document.getElementById("head-row").innerHTML = head;
 
   // 本体
-  const dayCount = days.map(() => 0), nightCount = days.map(() => 0);
+  const dayCount = visibleDays.map(() => 0), nightCount = visibleDays.map(() => 0);
   let body = "";
   employees.forEach(emp => {
+    const s = summarize(emp, days);
     let row = `<tr><td class="col-staff" title="${esc(emp.id)} / ${esc(emp.role)} / ${esc(emp.qual)}">
       <div class="staff-name"><span>${esc(emp.name)}</span>
-        <span class="staff-actions no-print"><button onclick="openEmpModal('${esc(emp.id)}')" title="編集">✎</button></span></div></td>
+        <span class="staff-actions no-print"><button onclick="openEmpModal('${esc(emp.id)}')" title="編集">✎</button></span></div>
+      <div class="staff-meta mobile-summary">${s.workDays}日・${s.hours}h</div></td>
       <td class="col-info">${esc(emp.id)}</td><td class="col-info">${esc(emp.role)}</td><td class="col-info">${esc(emp.qual)}</td>`;
-    days.forEach((dt, i) => {
+    visibleDays.forEach((dt, i) => {
       const val = getShift(emp, dt);
       const t = SHIFT_BY_CODE[val];
       if (t && t.kind === "day") dayCount[i]++;
       if (t && t.kind === "night") nightCount[i]++;
       const vio = isViolation(emp, dt, val) ? " violation" : "";
-      row += `<td class="shift-cell ${dayClass(dt)} shift-${esc(val)}${vio}" data-emp="${esc(emp.id)}" data-iso="${formatDate(dt)}">${esc(val)}</td>`;
+      row += `<td class="shift-cell ${dayClass(dt)} shift-${esc(val)}${vio}" data-emp="${esc(emp.id)}" data-iso="${formatDate(dt)}" title="${esc(emp.name)} / ${dt.getMonth()+1}月${dt.getDate()}日 / ${esc(t?.label || val)}">${esc(val)}</td>`;
     });
-    const s = summarize(emp, days);
     row += `<td class="col-stat s1">${s.nightHours}h</td><td class="col-stat s2">${s.hours}h</td><td class="col-stat s3">${s.workDays}日</td></tr>`;
     body += row;
   });
@@ -518,6 +594,7 @@ function renderPalette() {
   html += `<label class="info-toggle"><input type="checkbox" id="toggle-info" ${showInfo ? "checked" : ""}>役職・資格も表示</label>`;
   html += `<span class="palette-hint">ブラシを選ぶとドラッグで連続入力できます（Esc で解除）</span>`;
   p.innerHTML = html;
+  document.body.classList.toggle("brush-active", brush !== null);
 
   const pop = document.getElementById("popover");
   pop.innerHTML = SHIFT_TYPES.map(t => `<button style="background:${t.color}" data-code="${t.code}">${t.label}</button>`).join("");
@@ -631,6 +708,7 @@ function updateConfig() {
     needDay: Math.max(0, parseInt(document.getElementById("cfg-need-day").value, 10) || 0),
     needNight: Math.max(0, parseInt(document.getElementById("cfg-need-night").value, 10) || 0)
   };
+  mobileWeekStart = 0;
   fillConfigForm();
   render();
 }
@@ -639,6 +717,7 @@ function shiftMonth(delta) {
   if (m < 1) { m = 12; y--; }
   if (m > 12) { m = 1; y++; }
   config.year = y; config.month = m;
+  mobileWeekStart = 0;
   fillConfigForm();
   render();
 }
@@ -778,7 +857,16 @@ window.addEventListener("DOMContentLoaded", () => {
   renderPalette();
   initEvents();
   render();
+  window.addEventListener("resize", () => {
+    const mobile = isMobileView();
+    if (mobile === wasMobileView) return;
+    wasMobileView = mobile;
+    mobileWeekStart = 0;
+    render();
+  });
 });
 </script>
 </body>
 </html>
+
+
