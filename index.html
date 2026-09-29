@@ -74,6 +74,12 @@
     border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
   }
   .group-tab.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .group-action {
+    flex: 0 0 auto; border: 1px dashed #94a3b8; background: #f8fafc; color: #334155;
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .group-action:hover { background: #e2e8f0; border-style: solid; }
+  .group-action.rename { border-style: solid; color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
 
   .table-container {
     max-height: 72vh; overflow: auto; border: 1px solid var(--border-color);
@@ -249,7 +255,7 @@
     .shift-cell { font-size: 14px; font-weight: 700; }
     .duty-code { font-size: 9px; }
     .group-filter { margin-bottom: 8px; }
-    .group-tab { min-height: 38px; padding: 7px 12px; }
+    .group-tab, .group-action { min-height: 38px; padding: 7px 12px; }
     .group-heading td { padding: 7px 8px; }
     .col-stat { display: none; position: static; }
     body.show-info .col-info { display: none; }
@@ -479,6 +485,7 @@ const INDUSTRY_TEMPLATES = {
       { id: "day-service", name: "デイサービス", color: "#d97706" }
     ],
     duties: [
+      { id: "shuttle", name: "送迎", code: "送", color: "#16a34a" },
       { id: "delivery", name: "配送", code: "配", color: "#ea580c" },
       { id: "bath", name: "入浴", code: "浴", color: "#0891b2" },
       { id: "floor", name: "フロア", code: "フ", color: "#64748b" }
@@ -564,6 +571,7 @@ let shiftData = {};
 let groups = structuredClone(DEFAULT_GROUPS);
 let duties = structuredClone(DEFAULT_DUTIES);
 let assignmentData = {};
+let dataVersion = 2;
 let activeTarget = null;   // ポップオーバーの対象セル
 let brush = null;          // 選択中のブラシ（null = ポップオーバーで選択）
 let painting = false;
@@ -575,7 +583,7 @@ let wasMobileView = window.matchMedia("(max-width: 760px)").matches;
 
 /* ---------- 保存・読み込み ---------- */
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ config, employees, shiftData, groups, duties, assignmentData })); } catch (e) { /* 保存不可の環境では無視 */ }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ dataVersion, config, employees, shiftData, groups, duties, assignmentData })); } catch (e) { /* 保存不可の環境では無視 */ }
 }
 function load() {
   try {
@@ -588,12 +596,17 @@ function load() {
     if (Array.isArray(data.groups) && data.groups.length) groups = data.groups;
     if (Array.isArray(data.duties)) duties = data.duties;
     if (data.assignmentData) assignmentData = data.assignmentData;
+    dataVersion = Number(data.dataVersion) || 1;
   } catch (e) { /* 壊れたデータは無視して初期値で起動 */ }
   migrateOrganizationData();
 }
 
 function migrateOrganizationData() {
   if (!groups.length) groups = structuredClone(DEFAULT_GROUPS);
+  if (dataVersion < 2 && config.industry === "care" && !duties.some(duty => duty.id === "shuttle" || duty.name === "送迎")) {
+    duties.unshift(structuredClone(INDUSTRY_TEMPLATES.care.duties[0]));
+  }
+  dataVersion = 2;
   employees.forEach(emp => {
     if (groups.some(group => group.id === emp.groupId)) return;
     const text = `${emp.role || ""} ${emp.qual || ""}`;
@@ -727,7 +740,9 @@ function renderGroupFilter() {
   const filter = document.getElementById("group-filter");
   filter.innerHTML = [
     `<button class="group-tab ${activeGroupFilter === "all" ? "active" : ""}" data-group-filter="all">全体</button>`,
-    ...groups.map(group => `<button class="group-tab ${activeGroupFilter === group.id ? "active" : ""}" data-group-filter="${esc(group.id)}"><span class="group-dot" style="background:${group.color}"></span>${esc(group.name)}</button>`)
+    ...groups.map(group => `<button class="group-tab ${activeGroupFilter === group.id ? "active" : ""}" data-group-filter="${esc(group.id)}"><span class="group-dot" style="background:${group.color}"></span>${esc(group.name)}</button>`),
+    `<button class="group-action" type="button" onclick="quickAddGroup()" aria-label="グループを追加">＋ 追加</button>`,
+    ...(activeGroupFilter === "all" ? [] : [`<button class="group-action rename" type="button" onclick="renameActiveGroup()" aria-label="選択中のグループ名を変更">✎ 名称変更</button>`])
   ].join("");
 }
 
@@ -1031,6 +1046,33 @@ function addGroup() {
   toast(`${name}を追加しました`);
 }
 
+function quickAddGroup() {
+  const entered = prompt("追加するグループ・部署名を入力してください\n例：給食、清掃、製造、外注");
+  const name = entered?.trim();
+  if (!name) return;
+  if (groups.some(group => group.name === name)) return alert("同じ名前のグループが既にあります");
+  const group = { id: makeId("group"), name, color: GROUP_COLORS[groups.length % GROUP_COLORS.length] };
+  groups.push(group);
+  config.industry = "custom";
+  activeGroupFilter = group.id;
+  const industry = document.getElementById("cfg-industry");
+  if (industry) industry.value = "custom";
+  renderOrganizationSettings();
+  render();
+  toast(`${name}を追加しました`);
+}
+
+function renameActiveGroup() {
+  const group = groups.find(item => item.id === activeGroupFilter);
+  if (!group) return alert("名称を変更するグループを先に選んでください");
+  const entered = prompt("グループ・部署名を変更してください", group.name);
+  const name = entered?.trim();
+  if (!name || name === group.name) return;
+  if (groups.some(item => item.id !== group.id && item.name === name)) return alert("同じ名前のグループが既にあります");
+  renameGroup(group.id, name);
+  toast(`${name}に変更しました`);
+}
+
 function renameGroup(id, value) {
   const group = groups.find(item => item.id === id);
   const name = value.trim();
@@ -1038,6 +1080,7 @@ function renameGroup(id, value) {
   group.name = name;
   config.industry = "custom";
   document.getElementById("cfg-industry").value = "custom";
+  renderOrganizationSettings();
   render();
 }
 
@@ -1247,6 +1290,5 @@ window.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
-
 
 
