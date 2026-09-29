@@ -80,21 +80,24 @@
   }
   .group-action:hover { background: #e2e8f0; border-style: solid; }
   .group-action.rename { border-style: solid; color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
-  .group-inline-editor {
-    flex: 0 0 auto; display: flex; align-items: center; gap: 5px; padding: 2px 4px;
-    border: 2px solid #2563eb; border-radius: 8px; background: #eff6ff;
+  .group-editor-panel {
+    display: none; margin: -4px 0 10px; padding: 10px; border: 2px solid #2563eb;
+    border-radius: 8px; background: #eff6ff; align-items: end; gap: 8px; flex-wrap: wrap;
   }
-  .group-inline-editor input {
-    width: 150px; min-height: 34px; border: 1px solid #93c5fd; border-radius: 5px;
-    padding: 6px 8px; background: #fff; color: #0f172a; font-size: 14px;
+  .group-editor-panel.open { display: flex; }
+  .group-editor-field { display: grid; gap: 4px; min-width: 145px; flex: 1; }
+  .group-editor-field label { color: #475569; font-size: 12px; font-weight: 800; }
+  .group-editor-panel input, .group-editor-panel select {
+    width: 100%; min-height: 40px; border: 1px solid #93c5fd; border-radius: 6px;
+    padding: 7px 9px; background: #fff; color: #0f172a; font-size: 14px;
   }
-  .group-inline-editor button {
-    min-height: 34px; border: none; border-radius: 5px; padding: 6px 10px;
-    font-size: 12px; font-weight: 800; cursor: pointer;
+  .group-editor-panel button {
+    min-height: 40px; border: none; border-radius: 6px; padding: 7px 14px;
+    font-size: 13px; font-weight: 800; cursor: pointer;
   }
   .group-editor-save { background: #2563eb; color: #fff; }
   .group-editor-cancel { background: #e2e8f0; color: #334155; }
-  .group-editor-error { flex: 0 0 auto; align-self: center; color: #b91c1c; font-size: 12px; font-weight: 700; }
+  .group-editor-error { flex: 1 0 100%; color: #b91c1c; font-size: 12px; font-weight: 700; }
 
   .table-container {
     max-height: 72vh; overflow: auto; border: 1px solid var(--border-color);
@@ -331,6 +334,7 @@
 </div>
 
 <div class="group-filter no-print" id="group-filter" aria-label="表示するグループ"></div>
+<div class="group-editor-panel no-print" id="group-editor-panel" aria-live="polite"></div>
 
 <div class="mobile-period-nav no-print" id="mobile-period-nav" aria-label="スマホ用表示期間の切り替え">
   <button type="button" id="mobile-prev" onclick="shiftMobileWeek(-1)">‹ 前の7日</button>
@@ -754,20 +758,35 @@ function renderHeader() {
 function renderGroupFilter() {
   if (activeGroupFilter !== "all" && !groups.some(group => group.id === activeGroupFilter)) activeGroupFilter = "all";
   const filter = document.getElementById("group-filter");
-  const editingGroup = groupEditor?.mode === "rename" ? groups.find(group => group.id === groupEditor.groupId) : null;
-  const editor = groupEditor ? `<div class="group-inline-editor">
-    <input id="group-inline-name" type="text" maxlength="30" value="${esc(editingGroup?.name || "")}" placeholder="グループ名を入力" aria-label="グループ名">
-    <button class="group-editor-save" type="button" data-group-action="save">保存</button>
-    <button class="group-editor-cancel" type="button" data-group-action="cancel">取消</button>
-  </div><span class="group-editor-error" id="group-editor-error" aria-live="polite"></span>` : "";
   filter.innerHTML = [
     `<button class="group-tab ${activeGroupFilter === "all" ? "active" : ""}" data-group-filter="all">全体</button>`,
     ...groups.map(group => `<button class="group-tab ${activeGroupFilter === group.id ? "active" : ""}" data-group-filter="${esc(group.id)}"><span class="group-dot" style="background:${group.color}"></span>${esc(group.name)}</button>`),
-    ...(groupEditor ? [editor] : [
-      `<button class="group-action" type="button" data-group-action="add" aria-label="グループを追加">＋ 追加</button>`,
-      ...(activeGroupFilter === "all" ? [] : [`<button class="group-action rename" type="button" data-group-action="rename" aria-label="選択中のグループ名を変更">✎ 名称変更</button>`])
-    ])
+    `<button class="group-action" type="button" onclick="openGroupEditor('add')" aria-label="グループを追加">＋ 追加</button>`,
+    `<button class="group-action rename" type="button" onclick="openGroupEditor('rename')" aria-label="グループ名を変更">✎ 名称変更</button>`
   ].join("");
+  renderGroupEditorPanel();
+}
+
+function renderGroupEditorPanel() {
+  const panel = document.getElementById("group-editor-panel");
+  if (!groupEditor) {
+    panel.className = "group-editor-panel no-print";
+    panel.innerHTML = "";
+    return;
+  }
+  const editingGroup = groups.find(group => group.id === groupEditor.groupId) || groups[0];
+  panel.className = "group-editor-panel no-print open";
+  panel.innerHTML = `${groupEditor.mode === "rename" ? `<div class="group-editor-field">
+      <label for="group-editor-target">変更するグループ</label>
+      <select id="group-editor-target" onchange="selectRenameGroup(this.value)">${groups.map(group => `<option value="${esc(group.id)}" ${group.id === editingGroup.id ? "selected" : ""}>${esc(group.name)}</option>`).join("")}</select>
+    </div>` : ""}
+    <div class="group-editor-field">
+      <label for="group-inline-name">${groupEditor.mode === "add" ? "追加するグループ名" : "新しい名称"}</label>
+      <input id="group-inline-name" type="text" maxlength="30" value="${esc(groupEditor.mode === "rename" ? editingGroup.name : "")}" placeholder="例：給食、清掃、外注" aria-label="グループ名">
+    </div>
+    <button class="group-editor-save" type="button" onclick="saveGroupEditor()">保存</button>
+    <button class="group-editor-cancel" type="button" onclick="cancelGroupEditor()">取消</button>
+    <span class="group-editor-error" id="group-editor-error"></span>`;
 }
 
 function render() {
@@ -951,22 +970,12 @@ function initEvents() {
     renderPalette();
   });
   document.getElementById("group-filter").addEventListener("click", e => {
-    const action = e.target.closest("button[data-group-action]");
-    if (action) {
-      const type = action.dataset.groupAction;
-      if (type === "add") openGroupEditor("add");
-      if (type === "rename") openGroupEditor("rename");
-      if (type === "save") saveGroupEditor();
-      if (type === "cancel") cancelGroupEditor();
-      return;
-    }
     const btn = e.target.closest("button[data-group-filter]");
     if (!btn) return;
     activeGroupFilter = btn.dataset.groupFilter;
-    groupEditor = null;
     render();
   });
-  document.getElementById("group-filter").addEventListener("keydown", e => {
+  document.getElementById("group-editor-panel").addEventListener("keydown", e => {
     if (e.target.id !== "group-inline-name") return;
     if (e.key === "Enter") { e.preventDefault(); saveGroupEditor(); }
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelGroupEditor(); }
@@ -1086,21 +1095,30 @@ function addGroup() {
 }
 
 function openGroupEditor(mode) {
-  if (mode === "rename" && activeGroupFilter === "all") return;
-  groupEditor = { mode, groupId: mode === "rename" ? activeGroupFilter : null };
-  renderGroupFilter();
-  const filter = document.getElementById("group-filter");
+  groupEditor = { mode, groupId: mode === "rename" ? (activeGroupFilter === "all" ? groups[0].id : activeGroupFilter) : null };
+  renderGroupEditorPanel();
   requestAnimationFrame(() => {
-    filter.scrollTo({ left: filter.scrollWidth, behavior: "smooth" });
+    const panel = document.getElementById("group-editor-panel");
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     const input = document.getElementById("group-inline-name");
     input?.focus();
     if (mode === "rename") input?.select();
   });
 }
 
+function selectRenameGroup(groupId) {
+  if (!groupEditor || groupEditor.mode !== "rename") return;
+  const group = groups.find(item => item.id === groupId);
+  if (!group) return;
+  groupEditor.groupId = group.id;
+  const input = document.getElementById("group-inline-name");
+  if (input) { input.value = group.name; input.focus(); input.select(); }
+  setGroupEditorError("");
+}
+
 function cancelGroupEditor() {
   groupEditor = null;
-  renderGroupFilter();
+  renderGroupEditorPanel();
 }
 
 function setGroupEditorError(message) {
