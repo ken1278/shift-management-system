@@ -80,6 +80,21 @@
   }
   .group-action:hover { background: #e2e8f0; border-style: solid; }
   .group-action.rename { border-style: solid; color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+  .group-inline-editor {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 5px; padding: 2px 4px;
+    border: 2px solid #2563eb; border-radius: 8px; background: #eff6ff;
+  }
+  .group-inline-editor input {
+    width: 150px; min-height: 34px; border: 1px solid #93c5fd; border-radius: 5px;
+    padding: 6px 8px; background: #fff; color: #0f172a; font-size: 14px;
+  }
+  .group-inline-editor button {
+    min-height: 34px; border: none; border-radius: 5px; padding: 6px 10px;
+    font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  .group-editor-save { background: #2563eb; color: #fff; }
+  .group-editor-cancel { background: #e2e8f0; color: #334155; }
+  .group-editor-error { flex: 0 0 auto; align-self: center; color: #b91c1c; font-size: 12px; font-weight: 700; }
 
   .table-container {
     max-height: 72vh; overflow: auto; border: 1px solid var(--border-color);
@@ -578,6 +593,7 @@ let painting = false;
 let editingEmpId = null;
 let showInfo = false;      // 役職・資格列を表示するか（通常は氏名のみ）
 let activeGroupFilter = "all";
+let groupEditor = null;     // 上部のグループ追加・名称変更入力
 let mobileWeekStart = 0;   // スマホでは7日ずつ表示する
 let wasMobileView = window.matchMedia("(max-width: 760px)").matches;
 
@@ -738,11 +754,19 @@ function renderHeader() {
 function renderGroupFilter() {
   if (activeGroupFilter !== "all" && !groups.some(group => group.id === activeGroupFilter)) activeGroupFilter = "all";
   const filter = document.getElementById("group-filter");
+  const editingGroup = groupEditor?.mode === "rename" ? groups.find(group => group.id === groupEditor.groupId) : null;
+  const editor = groupEditor ? `<div class="group-inline-editor">
+    <input id="group-inline-name" type="text" maxlength="30" value="${esc(editingGroup?.name || "")}" placeholder="グループ名を入力" aria-label="グループ名">
+    <button class="group-editor-save" type="button" data-group-action="save">保存</button>
+    <button class="group-editor-cancel" type="button" data-group-action="cancel">取消</button>
+  </div><span class="group-editor-error" id="group-editor-error" aria-live="polite"></span>` : "";
   filter.innerHTML = [
     `<button class="group-tab ${activeGroupFilter === "all" ? "active" : ""}" data-group-filter="all">全体</button>`,
     ...groups.map(group => `<button class="group-tab ${activeGroupFilter === group.id ? "active" : ""}" data-group-filter="${esc(group.id)}"><span class="group-dot" style="background:${group.color}"></span>${esc(group.name)}</button>`),
-    `<button class="group-action" type="button" onclick="quickAddGroup()" aria-label="グループを追加">＋ 追加</button>`,
-    ...(activeGroupFilter === "all" ? [] : [`<button class="group-action rename" type="button" onclick="renameActiveGroup()" aria-label="選択中のグループ名を変更">✎ 名称変更</button>`])
+    ...(groupEditor ? [editor] : [
+      `<button class="group-action" type="button" data-group-action="add" aria-label="グループを追加">＋ 追加</button>`,
+      ...(activeGroupFilter === "all" ? [] : [`<button class="group-action rename" type="button" data-group-action="rename" aria-label="選択中のグループ名を変更">✎ 名称変更</button>`])
+    ])
   ].join("");
 }
 
@@ -927,10 +951,25 @@ function initEvents() {
     renderPalette();
   });
   document.getElementById("group-filter").addEventListener("click", e => {
+    const action = e.target.closest("button[data-group-action]");
+    if (action) {
+      const type = action.dataset.groupAction;
+      if (type === "add") openGroupEditor("add");
+      if (type === "rename") openGroupEditor("rename");
+      if (type === "save") saveGroupEditor();
+      if (type === "cancel") cancelGroupEditor();
+      return;
+    }
     const btn = e.target.closest("button[data-group-filter]");
     if (!btn) return;
     activeGroupFilter = btn.dataset.groupFilter;
+    groupEditor = null;
     render();
+  });
+  document.getElementById("group-filter").addEventListener("keydown", e => {
+    if (e.target.id !== "group-inline-name") return;
+    if (e.key === "Enter") { e.preventDefault(); saveGroupEditor(); }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelGroupEditor(); }
   });
 
   document.addEventListener("keydown", e => {
@@ -1046,31 +1085,59 @@ function addGroup() {
   toast(`${name}を追加しました`);
 }
 
-function quickAddGroup() {
-  const entered = prompt("追加するグループ・部署名を入力してください\n例：給食、清掃、製造、外注");
-  const name = entered?.trim();
-  if (!name) return;
-  if (groups.some(group => group.name === name)) return alert("同じ名前のグループが既にあります");
-  const group = { id: makeId("group"), name, color: GROUP_COLORS[groups.length % GROUP_COLORS.length] };
-  groups.push(group);
+function openGroupEditor(mode) {
+  if (mode === "rename" && activeGroupFilter === "all") return;
+  groupEditor = { mode, groupId: mode === "rename" ? activeGroupFilter : null };
+  renderGroupFilter();
+  const filter = document.getElementById("group-filter");
+  requestAnimationFrame(() => {
+    filter.scrollTo({ left: filter.scrollWidth, behavior: "smooth" });
+    const input = document.getElementById("group-inline-name");
+    input?.focus();
+    if (mode === "rename") input?.select();
+  });
+}
+
+function cancelGroupEditor() {
+  groupEditor = null;
+  renderGroupFilter();
+}
+
+function setGroupEditorError(message) {
+  const error = document.getElementById("group-editor-error");
+  if (error) error.textContent = message;
+}
+
+function saveGroupEditor() {
+  if (!groupEditor) return;
+  const input = document.getElementById("group-inline-name");
+  const name = input?.value.trim() || "";
+  if (!name) { setGroupEditorError("名称を入力してください"); input?.focus(); return; }
+  const currentId = groupEditor.mode === "rename" ? groupEditor.groupId : null;
+  if (groups.some(group => group.id !== currentId && group.name === name)) {
+    setGroupEditorError("同じ名称があります");
+    input?.select();
+    return;
+  }
+
+  if (groupEditor.mode === "add") {
+    const group = { id: makeId("group"), name, color: GROUP_COLORS[groups.length % GROUP_COLORS.length] };
+    groups.push(group);
+    activeGroupFilter = group.id;
+    toast(`${name}を追加しました`);
+  } else {
+    const group = groups.find(item => item.id === currentId);
+    if (!group) return cancelGroupEditor();
+    group.name = name;
+    toast(`${name}に変更しました`);
+  }
+
+  groupEditor = null;
   config.industry = "custom";
-  activeGroupFilter = group.id;
   const industry = document.getElementById("cfg-industry");
   if (industry) industry.value = "custom";
   renderOrganizationSettings();
   render();
-  toast(`${name}を追加しました`);
-}
-
-function renameActiveGroup() {
-  const group = groups.find(item => item.id === activeGroupFilter);
-  if (!group) return alert("名称を変更するグループを先に選んでください");
-  const entered = prompt("グループ・部署名を変更してください", group.name);
-  const name = entered?.trim();
-  if (!name || name === group.name) return;
-  if (groups.some(item => item.id !== group.id && item.name === name)) return alert("同じ名前のグループが既にあります");
-  renameGroup(group.id, name);
-  toast(`${name}に変更しました`);
 }
 
 function renameGroup(id, value) {
