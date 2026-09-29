@@ -19,6 +19,7 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     margin: 0; padding: 12px; background: #f1f5f9; color: #0f172a; font-size: 13px;
+    overflow-x: hidden;
   }
   .app-header {
     background: #fff; padding: 12px 16px; border-radius: 8px;
@@ -63,6 +64,17 @@
   .brush.active { border-color: #0f172a; box-shadow: 0 0 0 2px #fff inset; }
   .brush-none { background: #fff; color: #334155; border-color: var(--border-color); }
 
+  .group-filter {
+    display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; padding: 6px;
+    background: #fff; border: 1px solid var(--border-color); border-radius: 6px;
+    scrollbar-width: thin;
+  }
+  .group-tab {
+    flex: 0 0 auto; border: 1px solid var(--border-color); background: #fff; color: #334155;
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .group-tab.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+
   .table-container {
     max-height: 72vh; overflow: auto; border: 1px solid var(--border-color);
     background: #fff; border-radius: 4px; position: relative;
@@ -83,6 +95,8 @@
   .staff-name { font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
   .staff-meta { font-size: 10px; color: #64748b; font-weight: normal; }
   .mobile-summary { display: none; }
+  .staff-group { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 10px; color: #475569; }
+  .group-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
   /* 役職・資格列：通常は非表示。「詳細表示」ON のときだけスクロールで流れる列として出す */
   .col-info { display: none; text-align: left; font-size: 11px; color: #475569; }
   body.show-info .col-info { display: table-cell; }
@@ -111,6 +125,11 @@
   }
   body.brush-active .shift-cell { touch-action: none; }
   .shift-cell:hover { outline: 2px solid #2563eb; outline-offset: -2px; }
+  .shift-code { display: block; line-height: 1.1; }
+  .duty-code {
+    display: block; margin-top: 2px; font-size: 9px; line-height: 1; font-weight: 800;
+    color: #334155; overflow: hidden; text-overflow: ellipsis;
+  }
   .shift-日 { background: #e0f2fe; color: #0369a1; }
   .shift-早 { background: #fef9c3; color: #854d0e; }
   .shift-遅 { background: #fce7f3; color: #9d174d; }
@@ -129,12 +148,23 @@
   tfoot tr:first-child td { border-top: 2px solid var(--border-color); }
   tfoot .short { color: #dc2626; font-weight: bold; }
 
+  .group-heading td {
+    background: #e2e8f0; color: #1e293b; text-align: left; font-weight: 800;
+    padding: 6px 10px; border-top: 2px solid #94a3b8;
+  }
+  .group-heading .group-count { margin-left: 6px; color: #64748b; font-size: 10px; font-weight: 600; }
+
   #popover {
     position: fixed; display: none; background: #fff; border: 1px solid #94a3b8;
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15); border-radius: 6px; padding: 6px; gap: 4px; z-index: 100;
     flex-wrap: wrap; max-width: 300px;
   }
   #popover button { border: none; padding: 6px 9px; border-radius: 3px; font-size: 12px; cursor: pointer; color: #fff; font-weight: bold; }
+  .popover-section { width: 100%; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .popover-section + .popover-section { border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 6px; }
+  .popover-label { width: 100%; font-size: 10px; color: #64748b; font-weight: 700; }
+  #popover .duty-btn { color: #0f172a; background: #e2e8f0; border: 1px solid #cbd5e1; }
+  #popover .duty-clear { color: #475569; background: #fff; border: 1px solid #cbd5e1; }
 
   #drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 198; }
   #drawer {
@@ -151,6 +181,17 @@
   .weekday-picks { display: flex; gap: 4px; flex-wrap: wrap; }
   .weekday-picks label { display: inline-flex; align-items: center; gap: 2px; font-weight: normal; }
   .weekday-picks input { width: auto; }
+  .settings-section { border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 18px; }
+  .settings-section h4 { margin: 0 0 8px; font-size: 13px; }
+  .settings-note { margin: 0 0 10px; color: #64748b; font-size: 11px; line-height: 1.5; }
+  .settings-list { display: grid; gap: 6px; margin-bottom: 8px; }
+  .settings-item { display: grid; grid-template-columns: 14px minmax(0, 1fr) 40px 30px; gap: 6px; align-items: center; }
+  .settings-item.group-item { grid-template-columns: 14px minmax(0, 1fr) 30px; }
+  .settings-item input { min-width: 0; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; }
+  .settings-item button { border: none; background: #fee2e2; color: #b91c1c; border-radius: 4px; height: 30px; cursor: pointer; }
+  .add-setting-row { display: flex; gap: 6px; }
+  .add-setting-row input { flex: 1; min-width: 0; }
+  .add-setting-row .code-input { flex: 0 0 52px; }
 
   #modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 199; }
   .modal-box {
@@ -206,6 +247,10 @@
     .staff-name { align-items: flex-start; font-size: 13px; }
     .mobile-summary { display: block; margin-top: 3px; line-height: 1.3; }
     .shift-cell { font-size: 14px; font-weight: 700; }
+    .duty-code { font-size: 9px; }
+    .group-filter { margin-bottom: 8px; }
+    .group-tab { min-height: 38px; padding: 7px 12px; }
+    .group-heading td { padding: 7px 8px; }
     .col-stat { display: none; position: static; }
     body.show-info .col-info { display: none; }
     #popover { max-width: calc(100vw - 16px); padding: 8px; }
@@ -264,6 +309,8 @@
   <span class="palette-label">入力モード:</span>
 </div>
 
+<div class="group-filter no-print" id="group-filter" aria-label="表示するグループ"></div>
+
 <div class="mobile-period-nav no-print" id="mobile-period-nav" aria-label="スマホ用表示期間の切り替え">
   <button type="button" id="mobile-prev" onclick="shiftMobileWeek(-1)">‹ 前の7日</button>
   <strong id="mobile-range"></strong>
@@ -314,6 +361,40 @@
       <div><small>夜勤</small><input type="number" id="cfg-need-night" min="0" onchange="updateConfig()"></div>
     </div>
   </div>
+  <section class="settings-section">
+    <h4>業種テンプレート</h4>
+    <p class="settings-note">業種に合わせたグループと担当の例をまとめて設定できます。適用後も自由に変更できます。</p>
+    <div class="form-row">
+      <select id="cfg-industry">
+        <option value="care">介護施設</option>
+        <option value="factory">工場</option>
+        <option value="restaurant">飲食店</option>
+        <option value="retail">小売店</option>
+        <option value="office">一般企業</option>
+        <option value="custom">自由設定</option>
+      </select>
+      <button class="btn btn-sub" type="button" onclick="applyIndustryTemplate()">適用</button>
+    </div>
+  </section>
+  <section class="settings-section">
+    <h4>グループ・部署</h4>
+    <p class="settings-note">スタッフの所属や勤務表の区分です。例：ナース、デイサービス、製造A、検品。</p>
+    <div class="settings-list" id="group-settings-list"></div>
+    <div class="add-setting-row">
+      <input type="text" id="new-group-name" placeholder="新しいグループ名">
+      <button class="btn btn-add" type="button" onclick="addGroup()">追加</button>
+    </div>
+  </section>
+  <section class="settings-section">
+    <h4>当日の担当</h4>
+    <p class="settings-note">勤務区分とは別に、その日の役割を登録します。例：配送、入浴、梱包、レジ。</p>
+    <div class="settings-list" id="duty-settings-list"></div>
+    <div class="add-setting-row">
+      <input type="text" id="new-duty-name" placeholder="新しい担当名">
+      <input type="text" id="new-duty-code" class="code-input" maxlength="2" placeholder="略称">
+      <button class="btn btn-add" type="button" onclick="addDuty()">追加</button>
+    </div>
+  </section>
   <hr style="margin:20px 0; border:none; border-top:1px solid #e2e8f0;">
   <button class="btn btn-print" style="width:100%; justify-content:center;" onclick="window.print()">🖨️ 掲示板用に印刷 / PDF保存</button>
   <button class="btn btn-sub" style="width:100%; justify-content:center; margin-top:8px;" onclick="clearPeriod()">この期間のシフトを初期化</button>
@@ -331,6 +412,10 @@
   <div class="form-row">
     <div class="form-group"><label>役職 / 立場</label><input type="text" id="emp-role" placeholder="例: 派遣スタッフ, パート"></div>
     <div class="form-group"><label>資格 / 雇用形態</label><input type="text" id="emp-qual" placeholder="例: 介護福祉士 / 派遣"></div>
+  </div>
+  <div class="form-group">
+    <label>所属グループ・部署</label>
+    <select id="emp-group"></select>
   </div>
   <div class="form-row">
     <div class="form-group"><label>日勤帯 実働時間(h)</label><input type="number" step="0.5" min="0" id="emp-work"></div>
@@ -385,35 +470,112 @@ const SHIFT_TYPES = [
 ];
 const SHIFT_BY_CODE = Object.fromEntries(SHIFT_TYPES.map(s => [s.code, s]));
 
+const GROUP_COLORS = ["#2563eb", "#0d9488", "#d97706", "#7c3aed", "#dc2626", "#475569"];
+const INDUSTRY_TEMPLATES = {
+  care: {
+    groups: [
+      { id: "care", name: "介護", color: "#2563eb" },
+      { id: "nurse", name: "ナース", color: "#0d9488" },
+      { id: "day-service", name: "デイサービス", color: "#d97706" }
+    ],
+    duties: [
+      { id: "delivery", name: "配送", code: "配", color: "#ea580c" },
+      { id: "bath", name: "入浴", code: "浴", color: "#0891b2" },
+      { id: "floor", name: "フロア", code: "フ", color: "#64748b" }
+    ]
+  },
+  factory: {
+    groups: [
+      { id: "production-a", name: "製造A", color: "#2563eb" },
+      { id: "production-b", name: "製造B", color: "#0d9488" },
+      { id: "inspection", name: "検品", color: "#d97706" },
+      { id: "shipping", name: "出荷", color: "#7c3aed" }
+    ],
+    duties: [
+      { id: "machine", name: "機械操作", code: "機", color: "#2563eb" },
+      { id: "packing", name: "梱包", code: "梱", color: "#0d9488" },
+      { id: "delivery", name: "配送", code: "配", color: "#ea580c" },
+      { id: "inspection-duty", name: "点検", code: "点", color: "#7c3aed" }
+    ]
+  },
+  restaurant: {
+    groups: [
+      { id: "hall", name: "ホール", color: "#2563eb" },
+      { id: "kitchen", name: "キッチン", color: "#d97706" }
+    ],
+    duties: [
+      { id: "register", name: "レジ", code: "レ", color: "#2563eb" },
+      { id: "cooking", name: "調理", code: "調", color: "#d97706" },
+      { id: "delivery", name: "配達", code: "配", color: "#ea580c" },
+      { id: "cleaning", name: "清掃", code: "清", color: "#0d9488" }
+    ]
+  },
+  retail: {
+    groups: [
+      { id: "sales", name: "販売", color: "#2563eb" },
+      { id: "register-group", name: "レジ", color: "#0d9488" },
+      { id: "backyard", name: "バックヤード", color: "#d97706" }
+    ],
+    duties: [
+      { id: "register", name: "レジ", code: "レ", color: "#2563eb" },
+      { id: "stocking", name: "品出し", code: "品", color: "#0d9488" },
+      { id: "delivery", name: "配送", code: "配", color: "#ea580c" },
+      { id: "cleaning", name: "清掃", code: "清", color: "#64748b" }
+    ]
+  },
+  office: {
+    groups: [
+      { id: "sales", name: "営業", color: "#2563eb" },
+      { id: "administration", name: "管理", color: "#0d9488" },
+      { id: "support", name: "サポート", color: "#d97706" }
+    ],
+    duties: [
+      { id: "visit", name: "訪問", code: "訪", color: "#2563eb" },
+      { id: "inside", name: "内勤", code: "内", color: "#0d9488" },
+      { id: "reception", name: "受付", code: "受", color: "#d97706" }
+    ]
+  },
+  custom: {
+    groups: [{ id: "group-1", name: "グループ1", color: "#2563eb" }],
+    duties: []
+  }
+};
+const DEFAULT_GROUPS = structuredClone(INDUSTRY_TEMPLATES.care.groups);
+const DEFAULT_DUTIES = structuredClone(INDUSTRY_TEMPLATES.care.duties);
+
 const DEFAULT_CONFIG = {
   company: "社会福祉法人 幸寿会",
   facility: "特別養護老人ホーム さくら苑 2F",
   year: 2026, month: 10, closing: "15", payment: "翌月10日払い",
-  needDay: 3, needNight: 1
+  needDay: 3, needNight: 1, industry: "care"
 };
 
 const DEFAULT_EMPLOYEES = [
-  { id: "EMP001", name: "山田 太郎", role: "リーダー", qual: "介護福祉士 / 常勤", unwork: [0], times: { work: 8, night: 14 } },
-  { id: "EMP002", name: "佐藤 花子", role: "主任", qual: "看護師 / 常勤", unwork: [0, 6], times: { work: 8, night: 0 } },
-  { id: "EMP003", name: "鈴木 一郎", role: "スタッフ", qual: "調理師 / パート", unwork: [], times: { work: 5.5, night: 0 } },
-  { id: "EMP004", name: "高橋 健二", role: "フロア長", qual: "介護福祉士 / 夜勤専従", unwork: [], times: { work: 8, night: 15 } },
-  { id: "EMP005", name: "田中 美咲", role: "派遣", qual: "介護助手 / 派遣スタッフ", unwork: [0, 6], times: { work: 8, night: 0 } }
+  { id: "EMP001", name: "山田 太郎", role: "リーダー", qual: "介護福祉士 / 常勤", groupId: "care", unwork: [0], times: { work: 8, night: 14 } },
+  { id: "EMP002", name: "佐藤 花子", role: "主任", qual: "看護師 / 常勤", groupId: "nurse", unwork: [0, 6], times: { work: 8, night: 0 } },
+  { id: "EMP003", name: "鈴木 一郎", role: "スタッフ", qual: "調理師 / パート", groupId: "day-service", unwork: [], times: { work: 5.5, night: 0 } },
+  { id: "EMP004", name: "高橋 健二", role: "フロア長", qual: "介護福祉士 / 夜勤専従", groupId: "care", unwork: [], times: { work: 8, night: 15 } },
+  { id: "EMP005", name: "田中 美咲", role: "派遣", qual: "介護助手 / 派遣スタッフ", groupId: "care", unwork: [0, 6], times: { work: 8, night: 0 } }
 ];
 
 let config = { ...DEFAULT_CONFIG };
 let employees = structuredClone(DEFAULT_EMPLOYEES);
 let shiftData = {};
+let groups = structuredClone(DEFAULT_GROUPS);
+let duties = structuredClone(DEFAULT_DUTIES);
+let assignmentData = {};
 let activeTarget = null;   // ポップオーバーの対象セル
 let brush = null;          // 選択中のブラシ（null = ポップオーバーで選択）
 let painting = false;
 let editingEmpId = null;
 let showInfo = false;      // 役職・資格列を表示するか（通常は氏名のみ）
+let activeGroupFilter = "all";
 let mobileWeekStart = 0;   // スマホでは7日ずつ表示する
 let wasMobileView = window.matchMedia("(max-width: 760px)").matches;
 
 /* ---------- 保存・読み込み ---------- */
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ config, employees, shiftData })); } catch (e) { /* 保存不可の環境では無視 */ }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ config, employees, shiftData, groups, duties, assignmentData })); } catch (e) { /* 保存不可の環境では無視 */ }
 }
 function load() {
   try {
@@ -423,12 +585,39 @@ function load() {
     if (data.config) config = { ...DEFAULT_CONFIG, ...data.config };
     if (Array.isArray(data.employees)) employees = data.employees;
     if (data.shiftData) shiftData = data.shiftData;
+    if (Array.isArray(data.groups) && data.groups.length) groups = data.groups;
+    if (Array.isArray(data.duties)) duties = data.duties;
+    if (data.assignmentData) assignmentData = data.assignmentData;
   } catch (e) { /* 壊れたデータは無視して初期値で起動 */ }
+  migrateOrganizationData();
+}
+
+function migrateOrganizationData() {
+  if (!groups.length) groups = structuredClone(DEFAULT_GROUPS);
+  employees.forEach(emp => {
+    if (groups.some(group => group.id === emp.groupId)) return;
+    const text = `${emp.role || ""} ${emp.qual || ""}`;
+    if (groups.some(group => group.id === "nurse") && /看護|ナース/.test(text)) emp.groupId = "nurse";
+    else if (groups.some(group => group.id === "day-service") && /調理|デイ/.test(text)) emp.groupId = "day-service";
+    else emp.groupId = groups[0].id;
+  });
 }
 
 /* ---------- ユーティリティ ---------- */
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function getGroup(groupId) {
+  return groups.find(group => group.id === groupId) || groups[0];
+}
+function getDuty(dutyId) {
+  return duties.find(duty => duty.id === dutyId) || null;
+}
+function getAssignment(empId, iso) {
+  return getDuty(assignmentData[empId]?.[iso]);
+}
+function makeId(prefix) {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 function formatDate(dt) {
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
@@ -533,8 +722,18 @@ function renderHeader() {
   document.getElementById("disp-payment").textContent = config.payment;
 }
 
+function renderGroupFilter() {
+  if (activeGroupFilter !== "all" && !groups.some(group => group.id === activeGroupFilter)) activeGroupFilter = "all";
+  const filter = document.getElementById("group-filter");
+  filter.innerHTML = [
+    `<button class="group-tab ${activeGroupFilter === "all" ? "active" : ""}" data-group-filter="all">全体</button>`,
+    ...groups.map(group => `<button class="group-tab ${activeGroupFilter === group.id ? "active" : ""}" data-group-filter="${esc(group.id)}"><span class="group-dot" style="background:${group.color}"></span>${esc(group.name)}</button>`)
+  ].join("");
+}
+
 function render() {
   renderHeader();
+  renderGroupFilter();
   const days = getCalendarDays();
   if (days.length === 0) return;
   const visibleDays = getVisibleDays(days);
@@ -552,24 +751,37 @@ function render() {
   // 本体
   const dayCount = visibleDays.map(() => 0), nightCount = visibleDays.map(() => 0);
   let body = "";
-  employees.forEach(emp => {
-    const s = summarize(emp, days);
-    let row = `<tr><td class="col-staff" title="${esc(emp.id)} / ${esc(emp.role)} / ${esc(emp.qual)}">
-      <div class="staff-name"><span>${esc(emp.name)}</span>
-        <span class="staff-actions no-print"><button onclick="openEmpModal('${esc(emp.id)}')" title="編集">✎</button></span></div>
-      <div class="staff-meta mobile-summary">${s.workDays}日・${s.hours}h</div></td>
-      <td class="col-info">${esc(emp.id)}</td><td class="col-info">${esc(emp.role)}</td><td class="col-info">${esc(emp.qual)}</td>`;
-    visibleDays.forEach((dt, i) => {
-      const val = getShift(emp, dt);
-      const t = SHIFT_BY_CODE[val];
-      if (t && t.kind === "day") dayCount[i]++;
-      if (t && t.kind === "night") nightCount[i]++;
-      const vio = isViolation(emp, dt, val) ? " violation" : "";
-      row += `<td class="shift-cell ${dayClass(dt)} shift-${esc(val)}${vio}" data-emp="${esc(emp.id)}" data-iso="${formatDate(dt)}" title="${esc(emp.name)} / ${dt.getMonth()+1}月${dt.getDate()}日 / ${esc(t?.label || val)}">${esc(val)}</td>`;
+  const displayedGroups = activeGroupFilter === "all" ? groups : groups.filter(group => group.id === activeGroupFilter);
+  const totalColumns = 1 + 3 + visibleDays.length + 3;
+  displayedGroups.forEach(group => {
+    const members = employees.filter(emp => emp.groupId === group.id);
+    body += `<tr class="group-heading"><td colspan="${totalColumns}"><span class="group-dot" style="background:${group.color}"></span> ${esc(group.name)}<span class="group-count">${members.length}人</span></td></tr>`;
+    members.forEach(emp => {
+      const s = summarize(emp, days);
+      let row = `<tr><td class="col-staff" title="${esc(emp.id)} / ${esc(emp.role)} / ${esc(emp.qual)}">
+        <div class="staff-name"><span>${esc(emp.name)}</span>
+          <span class="staff-actions no-print"><button onclick="openEmpModal('${esc(emp.id)}')" title="編集">✎</button></span></div>
+        <div class="staff-group"><span class="group-dot" style="background:${group.color}"></span>${esc(group.name)}</div>
+        <div class="staff-meta mobile-summary">${s.workDays}日・${s.hours}h</div></td>
+        <td class="col-info">${esc(emp.id)}</td><td class="col-info">${esc(emp.role)}</td><td class="col-info">${esc(emp.qual)}</td>`;
+      visibleDays.forEach((dt, i) => {
+        const iso = formatDate(dt);
+        const val = getShift(emp, dt);
+        const t = SHIFT_BY_CODE[val];
+        const duty = getAssignment(emp.id, iso);
+        if (t && t.kind === "day") dayCount[i]++;
+        if (t && t.kind === "night") nightCount[i]++;
+        const vio = isViolation(emp, dt, val) ? " violation" : "";
+        const dutyLabel = duty ? ` / 担当: ${duty.name}` : "";
+        row += `<td class="shift-cell ${dayClass(dt)} shift-${esc(val)}${vio}" data-emp="${esc(emp.id)}" data-iso="${iso}" title="${esc(emp.name)} / ${dt.getMonth()+1}月${dt.getDate()}日 / ${esc(t?.label || val)}${esc(dutyLabel)}"><span class="shift-code">${esc(val)}</span>${duty ? `<span class="duty-code" style="color:${duty.color}">${esc(duty.code)}</span>` : ""}</td>`;
+      });
+      row += `<td class="col-stat s1">${s.nightHours}h</td><td class="col-stat s2">${s.hours}h</td><td class="col-stat s3">${s.workDays}日</td></tr>`;
+      body += row;
     });
-    row += `<td class="col-stat s1">${s.nightHours}h</td><td class="col-stat s2">${s.hours}h</td><td class="col-stat s3">${s.workDays}日</td></tr>`;
-    body += row;
   });
+  if (!displayedGroups.some(group => employees.some(emp => emp.groupId === group.id))) {
+    body += `<tr><td colspan="${totalColumns}" style="padding:24px; color:#64748b;">このグループにはスタッフが登録されていません。</td></tr>`;
+  }
   document.getElementById("table-body").innerHTML = body;
 
   // 日別人数
@@ -597,7 +809,11 @@ function renderPalette() {
   document.body.classList.toggle("brush-active", brush !== null);
 
   const pop = document.getElementById("popover");
-  pop.innerHTML = SHIFT_TYPES.map(t => `<button style="background:${t.color}" data-code="${t.code}">${t.label}</button>`).join("");
+  pop.innerHTML = `<div class="popover-section"><span class="popover-label">勤務区分</span>${SHIFT_TYPES.map(t => `<button style="background:${t.color}" data-code="${t.code}">${t.label}</button>`).join("")}</div>
+    <div class="popover-section"><span class="popover-label">当日の担当（勤務区分と別に設定）</span>
+      <button class="duty-clear" data-clear-duty="1">担当なし</button>
+      ${duties.map(duty => `<button class="duty-btn" style="border-color:${duty.color}; color:${duty.color}" data-duty="${esc(duty.id)}">${esc(duty.name)}</button>`).join("") || `<span class="settings-note">設定画面から担当を追加できます。</span>`}
+    </div>`;
 }
 
 /* ---------- セル入力 ---------- */
@@ -610,6 +826,19 @@ function setShift(empId, iso, code, { confirmViolation }) {
   }
   if (shiftData[empId][iso] === code) return false;
   shiftData[empId][iso] = code;
+  const type = SHIFT_BY_CODE[code];
+  if (type && ["off", "paid"].includes(type.kind) && assignmentData[empId]) delete assignmentData[empId][iso];
+  return true;
+}
+
+function setDuty(empId, iso, dutyId) {
+  if (!assignmentData[empId]) assignmentData[empId] = {};
+  if (!dutyId) {
+    delete assignmentData[empId][iso];
+    return true;
+  }
+  if (!duties.some(duty => duty.id === dutyId)) return false;
+  assignmentData[empId][iso] = dutyId;
   return true;
 }
 
@@ -655,11 +884,18 @@ function initEvents() {
   document.addEventListener("pointerup", () => { painting = false; });
 
   document.getElementById("popover").addEventListener("click", e => {
-    const btn = e.target.closest("button[data-code]");
+    const btn = e.target.closest("button");
     if (!btn || !activeTarget) return;
     const { empId, iso } = activeTarget;
-    closePopover();
-    if (setShift(empId, iso, btn.dataset.code, { confirmViolation: true })) render();
+    if (btn.dataset.code) {
+      closePopover();
+      if (setShift(empId, iso, btn.dataset.code, { confirmViolation: true })) render();
+      return;
+    }
+    if (btn.dataset.duty || btn.dataset.clearDuty) {
+      closePopover();
+      if (setDuty(empId, iso, btn.dataset.duty || null)) render();
+    }
   });
   document.getElementById("popover").addEventListener("pointerdown", e => e.stopPropagation());
   document.addEventListener("pointerdown", closePopover);
@@ -674,6 +910,12 @@ function initEvents() {
     if (!btn) return;
     brush = btn.dataset.brush || null;
     renderPalette();
+  });
+  document.getElementById("group-filter").addEventListener("click", e => {
+    const btn = e.target.closest("button[data-group-filter]");
+    if (!btn) return;
+    activeGroupFilter = btn.dataset.groupFilter;
+    render();
   });
 
   document.addEventListener("keydown", e => {
@@ -694,6 +936,8 @@ function fillConfigForm() {
   document.getElementById("cfg-payment").value = config.payment;
   document.getElementById("cfg-need-day").value = config.needDay;
   document.getElementById("cfg-need-night").value = config.needNight;
+  document.getElementById("cfg-industry").value = config.industry || "custom";
+  renderOrganizationSettings();
 }
 function updateConfig() {
   const month = parseInt(document.getElementById("cfg-month").value, 10);
@@ -706,7 +950,8 @@ function updateConfig() {
     closing: document.getElementById("cfg-closing").value.trim(),
     payment: document.getElementById("cfg-payment").value,
     needDay: Math.max(0, parseInt(document.getElementById("cfg-need-day").value, 10) || 0),
-    needNight: Math.max(0, parseInt(document.getElementById("cfg-need-night").value, 10) || 0)
+    needNight: Math.max(0, parseInt(document.getElementById("cfg-need-night").value, 10) || 0),
+    industry: config.industry || "custom"
   };
   mobileWeekStart = 0;
   fillConfigForm();
@@ -724,15 +969,138 @@ function shiftMonth(delta) {
 function clearPeriod() {
   if (!confirm("表示中の期間のシフトを初期状態（契約上の休みは公休、それ以外は日勤）に戻しますか？")) return;
   const isos = getCalendarDays().map(formatDate);
-  employees.forEach(emp => isos.forEach(iso => { if (shiftData[emp.id]) delete shiftData[emp.id][iso]; }));
+  employees.forEach(emp => isos.forEach(iso => {
+    if (shiftData[emp.id]) delete shiftData[emp.id][iso];
+    if (assignmentData[emp.id]) delete assignmentData[emp.id][iso];
+  }));
   render();
   toast("この期間のシフトを初期化しました");
 }
+
+function renderOrganizationSettings() {
+  const groupList = document.getElementById("group-settings-list");
+  const dutyList = document.getElementById("duty-settings-list");
+  if (!groupList || !dutyList) return;
+  groupList.innerHTML = groups.map(group => `<div class="settings-item group-item">
+    <span class="group-dot" style="background:${group.color}"></span>
+    <input value="${esc(group.name)}" aria-label="グループ名" onchange="renameGroup('${group.id}', this.value)">
+    <button type="button" onclick="deleteGroup('${group.id}')" title="削除">×</button>
+  </div>`).join("");
+  dutyList.innerHTML = duties.map(duty => `<div class="settings-item">
+    <span class="group-dot" style="background:${duty.color}"></span>
+    <input value="${esc(duty.name)}" aria-label="担当名" onchange="renameDuty('${duty.id}', 'name', this.value)">
+    <input value="${esc(duty.code)}" maxlength="2" aria-label="担当略称" onchange="renameDuty('${duty.id}', 'code', this.value)">
+    <button type="button" onclick="deleteDuty('${duty.id}')" title="削除">×</button>
+  </div>`).join("") || `<p class="settings-note">担当はまだありません。必要な役割だけ追加してください。</p>`;
+}
+
+function applyIndustryTemplate() {
+  const key = document.getElementById("cfg-industry").value;
+  const template = INDUSTRY_TEMPLATES[key];
+  if (!template) return;
+  if (!confirm("選択した業種のグループと担当に置き換えます。現在の担当設定は解除されます。続けますか？")) return;
+  groups = structuredClone(template.groups);
+  duties = structuredClone(template.duties);
+  assignmentData = {};
+  config.industry = key;
+  employees.forEach(emp => {
+    if (groups.some(group => group.id === emp.groupId)) return;
+    const text = `${emp.role || ""} ${emp.qual || ""}`;
+    if (key === "care" && /看護|ナース/.test(text)) emp.groupId = "nurse";
+    else if (key === "care" && /調理|デイ/.test(text)) emp.groupId = "day-service";
+    else emp.groupId = groups[0].id;
+  });
+  activeGroupFilter = "all";
+  renderOrganizationSettings();
+  renderPalette();
+  render();
+  toast("業種テンプレートを適用しました");
+}
+
+function addGroup() {
+  const input = document.getElementById("new-group-name");
+  const name = input.value.trim();
+  if (!name) return alert("グループ名を入力してください");
+  if (groups.some(group => group.name === name)) return alert("同じ名前のグループが既にあります");
+  groups.push({ id: makeId("group"), name, color: GROUP_COLORS[groups.length % GROUP_COLORS.length] });
+  config.industry = "custom";
+  document.getElementById("cfg-industry").value = "custom";
+  input.value = "";
+  renderOrganizationSettings();
+  render();
+  toast(`${name}を追加しました`);
+}
+
+function renameGroup(id, value) {
+  const group = groups.find(item => item.id === id);
+  const name = value.trim();
+  if (!group || !name) return renderOrganizationSettings();
+  group.name = name;
+  config.industry = "custom";
+  document.getElementById("cfg-industry").value = "custom";
+  render();
+}
+
+function deleteGroup(id) {
+  if (groups.length <= 1) return alert("グループは1つ以上必要です");
+  const group = getGroup(id);
+  if (!group || !confirm(`${group.name}を削除しますか？所属スタッフは先頭のグループへ移動します。`)) return;
+  groups = groups.filter(item => item.id !== id);
+  employees.forEach(emp => { if (emp.groupId === id) emp.groupId = groups[0].id; });
+  if (activeGroupFilter === id) activeGroupFilter = "all";
+  config.industry = "custom";
+  document.getElementById("cfg-industry").value = "custom";
+  renderOrganizationSettings();
+  render();
+}
+
+function addDuty() {
+  const nameInput = document.getElementById("new-duty-name");
+  const codeInput = document.getElementById("new-duty-code");
+  const name = nameInput.value.trim();
+  const code = (codeInput.value.trim() || name.slice(0, 1)).slice(0, 2);
+  if (!name) return alert("担当名を入力してください");
+  if (duties.some(duty => duty.name === name)) return alert("同じ名前の担当が既にあります");
+  duties.push({ id: makeId("duty"), name, code, color: GROUP_COLORS[duties.length % GROUP_COLORS.length] });
+  config.industry = "custom";
+  document.getElementById("cfg-industry").value = "custom";
+  nameInput.value = ""; codeInput.value = "";
+  renderOrganizationSettings();
+  renderPalette();
+  toast(`${name}を追加しました`);
+}
+
+function renameDuty(id, field, value) {
+  const duty = duties.find(item => item.id === id);
+  const next = value.trim();
+  if (!duty || !next) return renderOrganizationSettings();
+  duty[field] = field === "code" ? next.slice(0, 2) : next;
+  config.industry = "custom";
+  document.getElementById("cfg-industry").value = "custom";
+  renderPalette();
+  render();
+}
+
+function deleteDuty(id) {
+  const duty = getDuty(id);
+  if (!duty || !confirm(`${duty.name}を削除しますか？登録済みの担当表示も解除されます。`)) return;
+  duties = duties.filter(item => item.id !== id);
+  Object.values(assignmentData).forEach(assignments => {
+    Object.keys(assignments).forEach(iso => { if (assignments[iso] === id) delete assignments[iso]; });
+  });
+  config.industry = "custom";
+  document.getElementById("cfg-industry").value = "custom";
+  renderOrganizationSettings();
+  renderPalette();
+  render();
+}
+
 function toggleDrawer() {
   const d = document.getElementById("drawer");
   const b = document.getElementById("drawer-backdrop");
   d.classList.toggle("open");
   b.style.display = d.classList.contains("open") ? "block" : "none";
+  if (d.classList.contains("open")) renderOrganizationSettings();
 }
 
 /* ---------- スタッフ追加・編集 ---------- */
@@ -759,6 +1127,8 @@ function openEmpModal(empId) {
   document.getElementById("emp-qual").value = emp ? emp.qual : "";
   document.getElementById("emp-work").value = emp ? emp.times.work : 8;
   document.getElementById("emp-night").value = emp ? emp.times.night : 0;
+  document.getElementById("emp-group").innerHTML = groups.map(group =>
+    `<option value="${esc(group.id)}" ${emp && emp.groupId === group.id ? "selected" : ""}>${esc(group.name)}</option>`).join("");
   document.getElementById("emp-delete").style.display = emp ? "" : "none";
   document.getElementById("emp-unwork").innerHTML = weekdaysJp.map((w, i) =>
     `<label><input type="checkbox" value="${i}" ${emp && emp.unwork.includes(i) ? "checked" : ""}>${w}</label>`).join("");
@@ -776,6 +1146,7 @@ function submitEmp() {
     id, name,
     role: document.getElementById("emp-role").value.trim() || "スタッフ",
     qual: document.getElementById("emp-qual").value.trim() || "介護福祉士",
+    groupId: document.getElementById("emp-group").value || groups[0].id,
     unwork: [...document.querySelectorAll("#emp-unwork input:checked")].map(i => parseInt(i.value, 10)),
     times: {
       work: parseFloat(document.getElementById("emp-work").value) || 0,
@@ -798,6 +1169,7 @@ function deleteEmp() {
   if (!emp || !confirm(`${emp.name} さんを削除しますか？（シフトデータも削除されます）`)) return;
   employees = employees.filter(e => e.id !== emp.id);
   delete shiftData[emp.id];
+  delete assignmentData[emp.id];
   closeModals();
   render();
   toast(`${emp.name} さんを削除しました`);
@@ -810,15 +1182,22 @@ function buildPayroll() {
   const period = `${formatDate(days[0])}〜${formatDate(days[days.length - 1])}`;
   return employees.map(emp => {
     const s = summarize(emp, days);
+    const dutyCounts = {};
+    days.forEach(dt => {
+      const duty = getAssignment(emp.id, formatDate(dt));
+      if (duty) dutyCounts[duty.name] = (dutyCounts[duty.name] || 0) + 1;
+    });
     return {
       employeeId: emp.id,
       name: emp.name,
+      group: getGroup(emp.groupId)?.name || "",
       targetPeriod: period,
       workDays: s.workDays,
       nightShifts: s.nightCount,
       paidLeaveDays: s.paidDays,
       totalHours: s.hours,
-      nightHours: s.nightHours
+      nightHours: s.nightHours,
+      duties: Object.entries(dutyCounts).map(([name, count]) => `${name}:${count}回`).join(" / ")
     };
   });
 }
@@ -828,8 +1207,8 @@ function exportPayroll() {
   openModal("modal-pay");
 }
 function toCSV(rows) {
-  const headers = ["社員ID","氏名","対象期間","出勤日数","夜勤回数","有休日数","総実働(h)","夜勤時間(h)"];
-  const keys = ["employeeId","name","targetPeriod","workDays","nightShifts","paidLeaveDays","totalHours","nightHours"];
+  const headers = ["社員ID","氏名","グループ・部署","対象期間","出勤日数","夜勤回数","有休日数","総実働(h)","夜勤時間(h)","担当回数"];
+  const keys = ["employeeId","name","group","targetPeriod","workDays","nightShifts","paidLeaveDays","totalHours","nightHours","duties"];
   const q = v => `"${String(v).replace(/"/g, '""')}"`;
   return [headers.map(q).join(","), ...rows.map(r => keys.map(k => q(r[k])).join(","))].join("\r\n");
 }
@@ -868,5 +1247,6 @@ window.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
 
 
