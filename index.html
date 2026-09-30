@@ -761,8 +761,8 @@ function renderGroupFilter() {
   filter.innerHTML = [
     `<button class="group-tab ${activeGroupFilter === "all" ? "active" : ""}" data-group-filter="all">全体</button>`,
     ...groups.map(group => `<button class="group-tab ${activeGroupFilter === group.id ? "active" : ""}" data-group-filter="${esc(group.id)}"><span class="group-dot" style="background:${group.color}"></span>${esc(group.name)}</button>`),
-    `<button class="group-action" type="button" onclick="openGroupEditor('add')" aria-label="グループを追加">＋ 追加</button>`,
-    `<button class="group-action rename" type="button" onclick="openGroupEditor('rename')" aria-label="グループ名を変更">✎ 名称変更</button>`
+    `<button class="group-action" type="button" data-group-action="add" aria-label="グループを追加">＋ 追加</button>`,
+    `<button class="group-action rename" type="button" data-group-action="rename" aria-label="グループ名を変更">✎ 名称変更</button>`
   ].join("");
   renderGroupEditorPanel();
 }
@@ -778,14 +778,14 @@ function renderGroupEditorPanel() {
   panel.className = "group-editor-panel no-print open";
   panel.innerHTML = `${groupEditor.mode === "rename" ? `<div class="group-editor-field">
       <label for="group-editor-target">変更するグループ</label>
-      <select id="group-editor-target" onchange="selectRenameGroup(this.value)">${groups.map(group => `<option value="${esc(group.id)}" ${group.id === editingGroup.id ? "selected" : ""}>${esc(group.name)}</option>`).join("")}</select>
+      <select id="group-editor-target">${groups.map(group => `<option value="${esc(group.id)}" ${group.id === editingGroup.id ? "selected" : ""}>${esc(group.name)}</option>`).join("")}</select>
     </div>` : ""}
     <div class="group-editor-field">
       <label for="group-inline-name">${groupEditor.mode === "add" ? "追加するグループ名" : "新しい名称"}</label>
       <input id="group-inline-name" type="text" maxlength="30" value="${esc(groupEditor.mode === "rename" ? editingGroup.name : "")}" placeholder="例：給食、清掃、外注" aria-label="グループ名">
     </div>
-    <button class="group-editor-save" type="button" onclick="saveGroupEditor()">保存</button>
-    <button class="group-editor-cancel" type="button" onclick="cancelGroupEditor()">取消</button>
+    <button class="group-editor-save" type="button" data-group-editor-action="save">保存</button>
+    <button class="group-editor-cancel" type="button" data-group-editor-action="cancel">取消</button>
     <span class="group-editor-error" id="group-editor-error"></span>`;
 }
 
@@ -970,12 +970,26 @@ function initEvents() {
     renderPalette();
   });
   document.getElementById("group-filter").addEventListener("click", e => {
+    const action = e.target.closest("button[data-group-action]");
+    if (action) {
+      openGroupEditor(action.dataset.groupAction);
+      return;
+    }
     const btn = e.target.closest("button[data-group-filter]");
     if (!btn) return;
     activeGroupFilter = btn.dataset.groupFilter;
     render();
   });
-  document.getElementById("group-editor-panel").addEventListener("keydown", e => {
+  const groupEditorPanel = document.getElementById("group-editor-panel");
+  groupEditorPanel.addEventListener("click", e => {
+    const action = e.target.closest("button[data-group-editor-action]")?.dataset.groupEditorAction;
+    if (action === "save") saveGroupEditor();
+    if (action === "cancel") cancelGroupEditor();
+  });
+  groupEditorPanel.addEventListener("change", e => {
+    if (e.target.id === "group-editor-target") selectRenameGroup(e.target.value);
+  });
+  groupEditorPanel.addEventListener("keydown", e => {
     if (e.target.id !== "group-inline-name") return;
     if (e.key === "Enter") { e.preventDefault(); saveGroupEditor(); }
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelGroupEditor(); }
